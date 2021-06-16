@@ -145,6 +145,10 @@ credentials*
 ### scratchpad directory
 scratchpad/
 
-### VSC workspace
-workspace.code-workspace
+### VisualStudioCode ###
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+workspace.code-workspace
