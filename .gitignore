@@ -127,3 +127,23 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+*.pyc
+
+### zip files ###
+*.zip
+
+### Credentials file
+credentials*
+
+### scratchpad directory
+scratchpad/
+
+### VSC workspace
+workspace.code-workspace
