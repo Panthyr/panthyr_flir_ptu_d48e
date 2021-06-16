@@ -154,7 +154,7 @@ class pthead(object):
                 else:
                     reply = self.__await_reply(3)
 
-                if reply <> "OK": raise Exception("Problem while executing command {}".format(i))
+                if reply != "OK": raise Exception("Problem while executing command {}".format(i))
                     
             if not self.__calculate_resolution():  # try to calculate the ratio angle/step
                 raise Exception("Cannot calculate resolution")
@@ -164,7 +164,7 @@ class pthead(object):
             all_clear = True
             return "OK"
 
-        except Exception, e:
+        except Exception as e:
             all_clear = False  # no further movement unless a succesful reset has been performed
             log.error("{}".format(e), exc_info= True)
             return "ERROR (INITIALIZE): {}".format(e)
@@ -266,7 +266,7 @@ class pthead(object):
             tilt_low_limit = int(self.send_query("TN", 2))
             tilt_high_limit = int(self.send_query("TX", 2))
             return True
-        except Exception, e:
+        except Exception as e:
             all_clear = False
             message = "Problems while getting movement limits: {}".format(e)
             log.error(message)
@@ -312,12 +312,12 @@ class pthead(object):
 
             position_offset = int(self.get_position()["pan_pos"]) - target_position  # check end position compared to expected end position
 
-            if position_offset <> 0: 
+            if position_offset != 0: 
                 raise Exception("Offset during movement: {}".format(position_offset)) # there's an offset
 
             return "OK"
 
-        except Exception, e:
+        except Exception as e:
             message = "{}".format(e)
             log.error(message)
             return "ERROR {}".format(message)
@@ -341,7 +341,7 @@ class pthead(object):
             else:
                raise Exception("End point not within movement limits")
 
-            if reply <> "OK":  # something has gone wrong
+            if reply != "OK":  # something has gone wrong
                 raise Exception("Invalid reply from tilt command: {}".format(reply))
 
             self.send_command("A", 20)  # wait until movement has completed
@@ -353,7 +353,7 @@ class pthead(object):
             else:
                 return "OK"
 
-        except Exception, e:
+        except Exception as e:
             message = "{}".format(e)
             log.error(message)
             return "ERROR {}".format(message)
@@ -371,7 +371,7 @@ class pthead(object):
             if not all_clear: raise Exception("Not all clear, perform reset")
         
             ## first check heading and elevation
-            if heading <> "":  # heading was provided
+            if heading != "":  # heading was provided
                 if not 0 <= float(heading) < 360: 
                     raise Exception("{} is an invalid heading (should be  0 <= x < 360, North referenced)".format(heading))
 
@@ -385,7 +385,7 @@ class pthead(object):
                     return "ERROR " + message
                 commands_list.append("PP{}".format(pan_target_position))
 
-            if elevation <> "":
+            if elevation != "":
                 if not -90 <= float(elevation) <= 30:  # was a reasonable angle passed?
                     raise Exception("{} is an invalid elevation (should be -90 <= x <= 30)".format(elevation))          
                 tilt_target_position = int(float(elevation) / tilt_resolution)  # convert to head position
@@ -402,23 +402,23 @@ class pthead(object):
 
             for i in commands_list:
                 reply = self.send_command(i, 32)
-                if reply <> "OK": raise Exception("Invalid response from command {}: {}".format(i, reply))
+                if reply != "OK": raise Exception("Invalid response from command {}: {}".format(i, reply))
             
             end_position = self.get_position()
 
             error_message = []
-            if heading <> "":
-                if end_position["pan_pos"] <> pan_target_position:
+            if heading != "":
+                if end_position["pan_pos"] != pan_target_position:
                     error_message.append("pan_pos is {}, should be {}".format(end_position["pan_pos"], pan_target_position))
-            if elevation <> "":
-                if end_position["tilt_pos"] <> tilt_target_position:
+            if elevation != "":
+                if end_position["tilt_pos"] != tilt_target_position:
                     error_message.append("tilt_pos is {}, should be {}".format(end_position["tilt_pos"], tilt_target_position))
             if len(error_message) > 0:
                 raise Exception(",".join(error_message))
             
             return "OK"
 
-        except Exception, e:
+        except Exception as e:
             message = "{}".format(e)
             log.error(message)
             return "ERROR " + message
@@ -431,13 +431,13 @@ class pthead(object):
             
             for i in park_commands:
                 reply = self.send_command(i, 30)  # Pan to zero and tilt to lower limits
-                if reply <> "OK": raise Exception("invalid reply from command {}: {}".format(i, reply))
+                if reply != "OK": raise Exception("invalid reply from command {}: {}".format(i, reply))
                 
             pos = self.get_position()
             if not ((int(pos["tilt_pos"]) == tilt_low_limit) and (int(pos["pan_pos"]) == 0)):  # check end position compared to expected end position
                 raise Exception("not at correct position after parking, but at {0[tilt_pos]} tilt, {0[pan_pos]} pan".format(pos))
             
-        except Exception, e:
+        except Exception as e:
             log.error("{}".format(e) )  # debug
             return "ERROR (PARK): {}".format(e)
 
