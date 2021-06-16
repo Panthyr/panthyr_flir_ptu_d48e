@@ -22,28 +22,10 @@ from time import sleep
 import sys  # only for line number in exception display
 
 """Define constants."""
-ptu_port = 4000
-ptu_ip = "192.168.100.105"
-pan_constant_speed = 3000  # PS, max: ?, default: 1000
-tilt_constant_speed = 3000  # TS max: ?, default: 1000
-pan_max_speed = 4000
-tilt_max_speed = 4000
-pan_reset_speed = 4000
-tilt_reset_speed = 4000
+
 
 
 """Define variables."""
-all_clear = "False"  # set to True after succesful initialization and calibration procedure
-pan_resolution = 0  # intial setting of 0 prohibits angular calculations
-tilt_resolution = 0  # intial setting of 0 prohibits angular calculations
-pan_position_north = 0  # offset between True North and pan position 0
-tilt_position_level = 0  # offset between level and tilt position 0
-tilt_low_limit = 1  # setting this to position 1 limits the head to > 0
-tilt_high_limit = 1  # setting this to position 1 limits the head to < 0
-pan_low_limit = 1  # setting this to position 1 limits the head to > 0
-pan_high_limit = 1  # setting this to position 1 limits the head to < 0
-true_north_offset = 0  # heading in degrees when pan is set to position 0. Values: 0 <= x < 360. 90 means head is pointing East.
-level_offset = 0.00  # elevation in degrees when tilt is set to position 0. Values: +/-90. -90 means pointing down. (head coordinate system)
 
 log = logging.getLogger("__main__.{}".format(__name__))
 
@@ -84,10 +66,10 @@ class pthead(object):
     def setup_socket(self):
         global s
         try:
-            s = socket.create_connection((ptu_ip, ptu_port),5)  # create the socket object
+            s = socket.create_connection((self.PTU_IP, self.PTU_PORT),5)  # create the socket object
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1 ) # disable Nagle's algorithm
             self.__empty_rcv_socket(s)
-        except Exception, e:
+        except Exception as e:
             message = "Problem setting up socket for pan/tilt head: {}".format(e)
             log.error(message, exc_info = True)
             return False
@@ -131,12 +113,12 @@ class pthead(object):
         global s
 
         initialization_commands = ["FT", "PHL", "THR", "PML", "TMH", "CEC", "PA2000", "TA2000",
-        "PU{}".format(pan_max_speed), 
-        "TU{}".format(tilt_max_speed), 
-        "PS{}".format(pan_constant_speed), 
-        "TS{}".format(tilt_constant_speed),
-        "RPS{}".format(pan_reset_speed),
-        "RTS{}".format(tilt_reset_speed),]
+        "PU{}".format(self.PAN_MAX_SPEED), 
+        "TU{}".format(self.TILT_MAX_SPEED), 
+        "PS{}".format(self.PAN_CONSTANT_SPEED), 
+        "TS{}".format(self.TILT_CONSTANT_SPEED),
+        "RPS{}".format(self.PAN_RESET_SPEED),
+        "RTS{}".format(self.TILE_RESET_SPEED),]
         axis_reset_commands = ["RT", "RP"]  # these will need a longer timeout
 
         if reset:
