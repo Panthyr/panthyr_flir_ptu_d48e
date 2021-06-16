@@ -1,24 +1,27 @@
+#! /usr/bin/python3
 # coding: utf-8
-"""Socket control for the FLIR PTU-D48 pan/tilt head.
-
-Project: Hypermaq
-Dieter Vansteenwegen, VLIZ Belgium
-Copyright?
-
-Version for Python 3
 """
+Module: flir_ptu_d48e_configure.py
+Authors: Dieter Vansteenwegen
+Institution: VLIZ (Vlaams Institute voor de Zee)
+"""
+
+__author__ = "Dieter Vansteenwegen"
+__version__ = "0.1b"
+__credits__ = "Dieter Vansteenwegen"
+__email__ = "dieter.vansteenwegen@vliz.be"
+__status__ = "Development"
+__project__ = "Panthyr"
+__project_link__ = "https://waterhypernet.org/equipment/"
+
 import socket
 import select
 import getopt
 from time import sleep
 import sys  # only for line number in exception display
 
-"""Define constants."""
-
-"""Define variables."""
-
 class pthead(object):
-    """Pan/tilt head PTU-D48 from FLIR."""
+    """Socket control for the FLIR PTU-D48 pan/tilt head"""
 
     def __init__(self, ip = '192.168.100.105'):
         """Init."""

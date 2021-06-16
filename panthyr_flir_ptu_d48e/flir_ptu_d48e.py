@@ -1,33 +1,18 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # coding: utf-8
-"""Socket control for the FLIR PTU-D48 pan/tilt head.
-
-Project: Hypermaq
-Dieter Vansteenwegen, VLIZ Belgium
-Copyright?
-
-Connection is a socket client to the head.
-The basic ASCII query syntax is <command><delimiter>.
-The basic ASCII command syntax is <command><parameter><delimiter>, where:
-- <command> is the actual command
-- <parameter> is an alphanumeric value
-- <delimiter> Valid delimiter characters can be either [SPACE] or [ENTER].
-- A successfully executed command returns * <CR><LF>
-- A successfully executed query displays <N>* <QueryResult><CR><LF>
-- A failed command displays ! <ErrorMessage><CR><LF>
-When the unit is in auto stepping mode, the step size is changed dynamically. Units are processed as if eight step mode is selected.
-
-Conventions:
-Pan: rotation of the head in the same plan as its base
-Tilt: rotation of the head towards or away from the horizontal plane of its base
-pan_position: a specific angle of pan, referenced to the forward direction of its base (180 degrees from connector) (in steps, negative=CCW seen from top)
-tilt_position: a specific angle of tilt, referenced to the base of the head (in steps, negative is front pointing down)
-Heading: a specific angle of pan, referenced to the forward direction of its base (180 degrees from connector) (-180 to 180 degrees, negative=CCW seen from top)
-Elevation: a specific angle of tilt, referenced to the base of the head (-90 to +30 degrees, negative is front pointing down)
-
-TODO:
-Adjust holding power, checking current consumption
 """
+Module: flir_ptu_d48e.py
+Authors: Dieter Vansteenwegen
+Institution: VLIZ (Vlaams Institute voor de Zee)
+"""
+
+__author__ = "Dieter Vansteenwegen"
+__version__ = "0.1b"
+__credits__ = "Dieter Vansteenwegen"
+__email__ = "dieter.vansteenwegen@vliz.be"
+__status__ = "Development"
+__project__ = "Panthyr"
+__project_link__ = "https://waterhypernet.org/equipment/"
 
 
 import logging
@@ -63,7 +48,27 @@ level_offset = 0.00  # elevation in degrees when tilt is set to position 0. Valu
 log = logging.getLogger("__main__.{}".format(__name__))
 
 class pthead(object):
-    """Pan/tilt head PTU-D48 from FLIR."""
+    """Socket control for the FLIR PTU-D48 pan/tilt head.
+    
+    Connection is a socket client to the head.
+    
+    The basic ASCII command syntax is <command><parameter><delimiter>, where:
+    - <command> is the actual command
+    - <parameter> is an alphanumeric value
+    - <delimiter> Valid delimiter characters can be either [SPACE] or [ENTER].
+    - A successfully executed command returns * <CR><LF>
+    - A successfully executed query displays <N>* <QueryResult><CR><LF>
+    - A failed command displays ! <ErrorMessage><CR><LF>
+    When the unit is in auto stepping mode, the step size is changed dynamically. Units are processed as if eight step mode is selected.
+
+    Conventions:
+    Pan: rotation of the head in the same plan as its base
+    Tilt: rotation of the head towards or away from the horizontal plane of its base
+    pan_position: a specific angle of pan, referenced to the forward direction of its base (180 degrees from connector) (in steps, negative=CCW seen from top)
+    tilt_position: a specific angle of tilt, referenced to the base of the head (in steps, negative is front pointing down)
+    Heading: a specific angle of pan, referenced to the forward direction of its base (180 degrees from connector) (-180 to 180 degrees, negative=CCW seen from top)
+    Elevation: a specific angle of tilt, referenced to the base of the head (-90 to +30 degrees, negative is front pointing down)
+    """
 
     def __init__(self, reset=True):
         """Init."""
