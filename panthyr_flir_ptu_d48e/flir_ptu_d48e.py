@@ -16,6 +16,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
+from flir_ptu_d48e_connections import PTHeadConnection
 
 
 def initialize_logger() -> logging.Logger:
@@ -38,57 +39,6 @@ class HeadNotInitialized(Exception):
 
 class HeadCommandError(Exception):
     pass
-
-
-class PTHeadConnection():
-    pass
-
-
-class PTHeadIPConnection(PTHeadConnection):
-    """IP communication for the flir PTU-D48.
-
-    Provides functions to connect to the pan/tilt head over Ethernet
-    """
-    import socket as sckt
-    import select
-    PTU_IP = '192.168.100.190'
-    PTU_PORT = 4000
-    DEFAULT_TIMEOUT = 0.4
-
-    def __init__(self, ip: str, port: int):
-        """__init__ for class
-
-        Args:
-            ip (str): IP address of p/t head
-            port (int): socket number
-        """
-        self.ip = ip
-        self.port = port
-        self.log = initialize_logger()
-
-    def connect(self) -> None:
-        try:
-            self.socket = self.sckt.create_connection((self.ip, self.port), 5)
-        except Exception as e:
-            msg = f'Problem setting up socket for pan/tilt head: {e}'
-            print(msg)
-            self.log.error(msg, exc_info=True)
-            raise
-        else:
-            self.socket.setsockopt(self.sckt.IPPROTO_TCP, self.sckt.TCP_NODELAY,
-                                   1)  # disable Nagle's algorithm
-            self._empty_rcv_socket()
-
-    def _empty_rcv_socket(self) -> None:
-        while True:
-            read, __, __ = self.select.select([self.socket], [], [], 0)
-            if len(read) == 0:
-                return
-            self.socket.recv(1)
-
-    def send_cmd(self, command: str, argument: str = None) -> None:
-        # TODO: if command in ['RT', 'RP']
-        pass
 
 
 class PTHead():
