@@ -91,8 +91,6 @@ class PTHead():
             has_slipring (bool, optional): True for models with slipring
                 to enable continuous rotation. Defaults to True.
 
-        Raises:
-            NotImplementedError: serial connection is not supported yet
         """
         self.log = initialize_logger()
         self._conn = connection
@@ -119,7 +117,7 @@ class PTHead():
                 self._conn.send_cmd(cmd)
             except HeadCommandError() as e:
                 msg = f'Command {cmd} gave reply {e}, head not initialized.'
-                self.log.error(msg)
+                self.log.error(msg, exc_info=True)
                 raise
 
         self._calculate_resolution()

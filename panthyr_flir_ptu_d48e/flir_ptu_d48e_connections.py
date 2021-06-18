@@ -15,6 +15,8 @@ __project__ = "Panthyr"
 __project_link__ = "https://waterhypernet.org/equipment/"
 
 import logging
+import time
+# from typing import Union
 
 
 def initialize_logger() -> logging.Logger:
@@ -46,9 +48,9 @@ class PTHeadIPConnection(PTHeadConnection):
 
     PTU_IP = '192.168.100.190'
     PTU_PORT = 4000
-    DEFAULT_TIMEOUT = 0.4
+    DEFAULT_TIMEOUT = 0.5
 
-    def __init__(self, ip: str, port: int = 4000):
+    def __init__(self, ip: str = PTU_IP, port: int = PTU_PORT):
         """__init__ for class
 
         Args:
@@ -79,6 +81,25 @@ class PTHeadIPConnection(PTHeadConnection):
                 return
             self.socket.recv(1)
 
-    def send_cmd(self, command: str, expect_limit_err: bool = False) -> None:
+    def send_cmd(self,
+                 command: str,
+                 expect_limit_err: bool = False,
+                 timeout: float = DEFAULT_TIMEOUT) -> None:
+        """[summary]
+
+        [extended_summary]
+
+        Args:
+            command (str): Command to be sent, without CR
+            expect_limit_err (bool, optional): if limit errors are allowed,
+                such as during axis reset.
+                Defaults to False.
+            timeout (float, optional): define different expected duration than DEFAULT_TIMEOUT,
+                for example for move operations.
+                Defaults to DEFAULT_TIMEOUT.
+        """
         # TODO: if command in ['RT', 'RP']
-        self.socket.send(command)
+        self._empty_rcv_socket()
+        self.socket.send(command + '\r')
+        time.sleep(0.1)
+        reply = self._get_reply(expect_limit_err, timeout)
