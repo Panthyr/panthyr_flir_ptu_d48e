@@ -14,20 +14,13 @@ __status__ = "Development"
 __project__ = "Panthyr"
 __project_link__ = "https://waterhypernet.org/equipment/"
 
-
 import logging
 import socket
 import select
 from time import sleep
-import sys  # only for line number in exception display
-
-"""Define constants."""
-
-
-
-"""Define variables."""
 
 log = logging.getLogger("__main__.{}".format(__name__))
+
 
 class pthead(object):
     """Socket control for the FLIR PTU-D48 pan/tilt head.
@@ -75,29 +68,29 @@ class pthead(object):
     true_north_offset = 0  # heading in degrees when pan is set to position 0. Values: 0 <= x < 360. 90 means head is pointing East.
     level_offset = 0.00  # elevation in degrees when tilt is set to position 0. Values: +/-90. -90 means pointing down. (head coordinate system)
 
-
     def __init__(self, reset=True):
         """Init."""
 
     def __empty_rcv_socket(self, socket):
         """Uses select.select to check if there's data in the receive buffer on [socket] and clears it."""
         while True:
-            read, __, __ = select.select([socket],[],[], 0)
-            if len(read)==0: 
+            read, __, __ = select.select([socket], [], [], 0)
+            if len(read) == 0:
                 return True
             socket.recv(1)
 
     def setup_socket(self):
         global s
         try:
-            s = socket.create_connection((self.PTU_IP, self.PTU_PORT),5)  # create the socket object
-            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1 ) # disable Nagle's algorithm
+            s = socket.create_connection((self.PTU_IP, self.PTU_PORT),
+                                         5)  # create the socket object
+            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # disable Nagle's algorithm
             self.__empty_rcv_socket(s)
         except Exception as e:
             message = "Problem setting up socket for pan/tilt head: {}".format(e)
-            log.error(message, exc_info = True)
+            log.error(message, exc_info=True)
             return False
-        
+
         return True
 
     def initialize(self, reset=True):
@@ -136,18 +129,30 @@ class pthead(object):
         global all_clear
         global s
 
-        initialization_commands = ["FT", "PHL", "THR", "PML", "TMH", "CEC", "PA2000", "TA2000",
-        "PU{}".format(self.PAN_MAX_SPEED), 
-        "TU{}".format(self.TILT_MAX_SPEED), 
-        "PS{}".format(self.PAN_CONSTANT_SPEED), 
-        "TS{}".format(self.TILT_CONSTANT_SPEED),
-        "RPS{}".format(self.PAN_RESET_SPEED),
-        "RTS{}".format(self.TILE_RESET_SPEED),]
+        initialization_commands = [
+            "FT",
+            "PHL",
+            "THR",
+            "PML",
+            "TMH",
+            "CEC",
+            "PA2000",
+            "TA2000",
+            "PU{}".format(self.PAN_MAX_SPEED),
+            "TU{}".format(self.TILT_MAX_SPEED),
+            "PS{}".format(self.PAN_CONSTANT_SPEED),
+            "TS{}".format(self.TILT_CONSTANT_SPEED),
+            "RPS{}".format(self.PAN_RESET_SPEED),
+            "RTS{}".format(self.TILE_RESET_SPEED),
+        ]
         axis_reset_commands = ["RT", "RP"]  # these will need a longer timeout
 
         if reset:
-            initialization_commands.extend(["WTA", "WPA", "RT", "RP", "RD"])  # add reset and calibration commands to be executed
-        initialization_commands.extend(["TNU-27999", "TXU9333", "PNU-27067", "PXU27067", "LU"])  # limit settings need to be done after axis resets have been done, so put these at the end of the list
+            initialization_commands.extend(["WTA", "WPA", "RT", "RP", "RD"
+                                            ])  # add reset and calibration commands to be executed
+        initialization_commands.extend(
+            ["TNU-27999", "TXU9333", "PNU-27067", "PXU27067", "LU"]
+        )  # limit settings need to be done after axis resets have been done, so put these at the end of the list
 
         try:
             s.send("ED\r")  # disable host command echo
@@ -161,7 +166,7 @@ class pthead(object):
                     reply = self.__await_reply(3)
 
                 if reply != "OK": raise Exception("Problem while executing command {}".format(i))
-                    
+
             if not self.__calculate_resolution():  # try to calculate the ratio angle/step
                 raise Exception("Cannot calculate resolution")
             if not self.__get_limits():  # try to get movement limits
@@ -172,7 +177,7 @@ class pthead(object):
 
         except Exception as e:
             all_clear = False  # no further movement unless a succesful reset has been performed
-            log.error("{}".format(e), exc_info= True)
+            log.error("{}".format(e), exc_info=True)
             return "ERROR (INITIALIZE): {}".format(e)
 
     def __await_reply(self, amount=3, expect_limit_error=False):
@@ -188,25 +193,28 @@ class pthead(object):
         amount = amount * 10  # amount is in seconds, but we're going to work in 0.1 second steps
 
         while amount:  # if timeout has not been passed
-            read, __, __ = select.select([s],[],[], 0)
+            read, __, __ = select.select([s], [], [], 0)
             while len(read) > 0:
                 socket_rx_buffer_str += s.recv(1)  # read the buffer, character by character
-                if not expect_limit_error and socket_rx_buffer_str[:2] == "\n*" and socket_rx_buffer_str[-2:] == "\r\n":
+                if not expect_limit_error and socket_rx_buffer_str[:
+                                                                   2] == "\n*" and socket_rx_buffer_str[
+                                                                       -2:] == "\r\n":
                     # for non axis-reset/calib commands, reply should have these start and endings
                     if len(socket_rx_buffer_str) < 5:  # if there's no reply (to a query)
                         return "OK"
                     else:
-                        return socket_rx_buffer_str[3: -2]  # return the reply
+                        return socket_rx_buffer_str[3:-2]  # return the reply
 
-                if expect_limit_error and socket_rx_buffer_str[:2] == "\n!" and socket_rx_buffer_str[-2:] == "\r\n":
+                if expect_limit_error and socket_rx_buffer_str[:2] == "\n!" and socket_rx_buffer_str[
+                        -2:] == "\r\n":
                     # for axis-reset/calib commands, these start/endings are expected
                     return "OK"
-                read, __, __ = select.select([s],[],[], 0)
-                
+                read, __, __ = select.select([s], [], [], 0)
+
             amount -= 1
             sleep(0.1)
 
-        message = "received unexpected answer: {}".format(socket_rx_buffer_str[3: -2])
+        message = "received unexpected answer: {}".format(socket_rx_buffer_str[3:-2])
         log.error(message)
         return ("ERROR (AWAIT_REPLY): " + message)
 
@@ -217,7 +225,9 @@ class pthead(object):
         self.__empty_rcv_socket(s)
         s.send(command + "\r")  # send the command
         sleep(0.1)  # needed pause for reply
-        reply = self.__await_reply(timeout)  # for default commands (non-movement/reset), a timeout of 3 seconds is presumed
+        reply = self.__await_reply(
+            timeout
+        )  # for default commands (non-movement/reset), a timeout of 3 seconds is presumed
         if reply == "OK":  # no valid response received
             return "OK"
         else:
@@ -231,8 +241,9 @@ class pthead(object):
         sleep(0.1)  # needed pause for reply
         reply = self.__await_reply(timeout)
         if reply[:5] == "ERROR":
-            log.error("Unexpected anwer received for query '{}': {}".format(query, reply)) # debug
-            return "ERROR (SEND_QUERY) Unexpected anwer received for query '{}': {}".format(query, reply)
+            log.error("Unexpected anwer received for query '{}': {}".format(query, reply))  # debug
+            return "ERROR (SEND_QUERY) Unexpected anwer received for query '{}': {}".format(
+                query, reply)
         else:
             return reply
 
@@ -286,9 +297,10 @@ class pthead(object):
         voltage_and_temps = (self.send_query("O")).split(",")
 
         return_dict["voltage"] = float(voltage_and_temps[0])
-        return_dict["temp_head"] =(float(voltage_and_temps[1])-32) /1.8  # convert from fahrenheit to degrees C
-        return_dict["temp_pan"] = (float(voltage_and_temps[2])-32) /1.8
-        return_dict["temp_tilt"] = (float(voltage_and_temps[3])-32) /1.8
+        return_dict["temp_head"] = (float(voltage_and_temps[1]) -
+                                    32) / 1.8  # convert from fahrenheit to degrees C
+        return_dict["temp_pan"] = (float(voltage_and_temps[2]) - 32) / 1.8
+        return_dict["temp_tilt"] = (float(voltage_and_temps[3]) - 32) / 1.8
 
         return return_dict
 
@@ -299,27 +311,31 @@ class pthead(object):
         global all_clear
 
         try:
-            if not all_clear: 
+            if not all_clear:
                 raise Exception("Not all clear, perform reset!")
 
             pan_movement = int(degrees / pan_resolution)  # calculate needed steps to pan "degrees"
-            current_pan_position = int(self.get_position()["pan_pos"])  # query position before movement
+            current_pan_position = int(
+                self.get_position()["pan_pos"])  # query position before movement
             target_position = current_pan_position + pan_movement
 
             if pan_low_limit <= target_position <= pan_high_limit:  # end position is within movement limits
                 reply = self.send_command("PO" + str(int(pan_movement)), 32)  # execute pan
-            else: 
+            else:
                 raise Exception("End point not within movement limits")
 
-            if not reply == "OK": 
-                raise Exception("Invalid reply from pan command: {}".format(reply)) # something has gone wrong
+            if not reply == "OK":
+                raise Exception(
+                    "Invalid reply from pan command: {}".format(reply))  # something has gone wrong
 
             self.send_command("A", 32)  # wait until movement has completed
 
-            position_offset = int(self.get_position()["pan_pos"]) - target_position  # check end position compared to expected end position
+            position_offset = int(self.get_position(
+            )["pan_pos"]) - target_position  # check end position compared to expected end position
 
-            if position_offset != 0: 
-                raise Exception("Offset during movement: {}".format(position_offset)) # there's an offset
+            if position_offset != 0:
+                raise Exception(
+                    "Offset during movement: {}".format(position_offset))  # there's an offset
 
             return "OK"
 
@@ -338,21 +354,24 @@ class pthead(object):
             if not all_clear:
                 raise Exception("Not all clear, perform reset!")
 
-            tilt_movement = int(degrees / tilt_resolution)  # calculate needed steps to tilt "degrees"
-            current_tilt_position = int(self.get_position()["tilt_pos"])  # query position before movement
+            tilt_movement = int(degrees /
+                                tilt_resolution)  # calculate needed steps to tilt "degrees"
+            current_tilt_position = int(
+                self.get_position()["tilt_pos"])  # query position before movement
             target_position = current_tilt_position + tilt_movement
 
             if tilt_low_limit <= target_position <= tilt_high_limit:  # end position is within movement limits
                 reply = self.send_command("TO" + str(tilt_movement), 20)  # execute tilt
             else:
-               raise Exception("End point not within movement limits")
+                raise Exception("End point not within movement limits")
 
             if reply != "OK":  # something has gone wrong
                 raise Exception("Invalid reply from tilt command: {}".format(reply))
 
             self.send_command("A", 20)  # wait until movement has completed
 
-            position_offset = int(self.get_position()["tilt_pos"]) - target_position  # check end position compared to expected end position
+            position_offset = int(self.get_position(
+            )["tilt_pos"]) - target_position  # check end position compared to expected end position
 
             if not position_offset == 0:  # there's an offset
                 raise Exception("Offset during movement: {}".format(position_offset))
@@ -363,7 +382,7 @@ class pthead(object):
             message = "{}".format(e)
             log.error(message)
             return "ERROR {}".format(message)
-    
+
     def move_position(self, heading="", elevation=""):
         """Moves the head to heading and elevation.
 
@@ -372,33 +391,42 @@ class pthead(object):
         If one of (heading, elevation) is not defined, that axis isn't moved.
         """
 
-        commands_list= []
-        try:        
+        commands_list = []
+        try:
             if not all_clear: raise Exception("Not all clear, perform reset")
-        
+
             ## first check heading and elevation
             if heading != "":  # heading was provided
-                if not 0 <= float(heading) < 360: 
-                    raise Exception("{} is an invalid heading (should be  0 <= x < 360, North referenced)".format(heading))
+                if not 0 <= float(heading) < 360:
+                    raise Exception(
+                        "{} is an invalid heading (should be  0 <= x < 360, North referenced)".
+                        format(heading))
 
-                if 180 <= float(heading) <= 360:  # first convert 0 - 360 degrees to +/- 180 degrees (and check if reasonable heading was given)
+                if 180 <= float(
+                        heading
+                ) <= 360:  # first convert 0 - 360 degrees to +/- 180 degrees (and check if reasonable heading was given)
                     heading = heading - 360
-                pan_target_position = int(float(heading) / pan_resolution)  # convert to head position
+                pan_target_position = int(float(heading) /
+                                          pan_resolution)  # convert to head position
 
                 if not pan_low_limit <= pan_target_position <= pan_high_limit:
-                    message = "target heading {:06.2f} (position {}) is out of bounds".format(heading, pan_target_position)
+                    message = "target heading {:06.2f} (position {}) is out of bounds".format(
+                        heading, pan_target_position)
                     logging.warning(message)
                     return "ERROR " + message
                 commands_list.append("PP{}".format(pan_target_position))
 
             if elevation != "":
                 if not -90 <= float(elevation) <= 30:  # was a reasonable angle passed?
-                    raise Exception("{} is an invalid elevation (should be -90 <= x <= 30)".format(elevation))          
-                tilt_target_position = int(float(elevation) / tilt_resolution)  # convert to head position
+                    raise Exception(
+                        "{} is an invalid elevation (should be -90 <= x <= 30)".format(elevation))
+                tilt_target_position = int(float(elevation) /
+                                           tilt_resolution)  # convert to head position
 
                 if not tilt_low_limit <= tilt_target_position <= tilt_high_limit:  # end position is within movement limits
                     # raise Exception("target elevation {:05.2f} (position {}) is out of bounds".format(elevation, tilt_target_position)) # end position is outside of movement limits
-                    message = "target elevation {:05.2f} (position {}) is out of bounds".format(elevation, tilt_target_position)
+                    message = "target elevation {:05.2f} (position {}) is out of bounds".format(
+                        elevation, tilt_target_position)
                     log.warning(message)
                     return "ERROR " + message
                 commands_list.append("TP{}".format(tilt_target_position))
@@ -408,43 +436,50 @@ class pthead(object):
 
             for i in commands_list:
                 reply = self.send_command(i, 32)
-                if reply != "OK": raise Exception("Invalid response from command {}: {}".format(i, reply))
-            
+                if reply != "OK":
+                    raise Exception("Invalid response from command {}: {}".format(i, reply))
+
             end_position = self.get_position()
 
             error_message = []
             if heading != "":
                 if end_position["pan_pos"] != pan_target_position:
-                    error_message.append("pan_pos is {}, should be {}".format(end_position["pan_pos"], pan_target_position))
+                    error_message.append("pan_pos is {}, should be {}".format(
+                        end_position["pan_pos"], pan_target_position))
             if elevation != "":
                 if end_position["tilt_pos"] != tilt_target_position:
-                    error_message.append("tilt_pos is {}, should be {}".format(end_position["tilt_pos"], tilt_target_position))
+                    error_message.append("tilt_pos is {}, should be {}".format(
+                        end_position["tilt_pos"], tilt_target_position))
             if len(error_message) > 0:
                 raise Exception(",".join(error_message))
-            
+
             return "OK"
 
         except Exception as e:
             message = "{}".format(e)
             log.error(message)
             return "ERROR " + message
-        
 
     def park(self):
         """Pan to zero and tilts to its lowest limit to guard the sensors from fouling."""
         try:
             park_commands = ("PP0", "TP{}".format(tilt_low_limit), "A")
-            
+
             for i in park_commands:
                 reply = self.send_command(i, 30)  # Pan to zero and tilt to lower limits
-                if reply != "OK": raise Exception("invalid reply from command {}: {}".format(i, reply))
-                
+                if reply != "OK":
+                    raise Exception("invalid reply from command {}: {}".format(i, reply))
+
             pos = self.get_position()
-            if not ((int(pos["tilt_pos"]) == tilt_low_limit) and (int(pos["pan_pos"]) == 0)):  # check end position compared to expected end position
-                raise Exception("not at correct position after parking, but at {0[tilt_pos]} tilt, {0[pan_pos]} pan".format(pos))
-            
+            if not (
+                (int(pos["tilt_pos"]) == tilt_low_limit) and
+                (int(pos["pan_pos"]) == 0)):  # check end position compared to expected end position
+                raise Exception(
+                    "not at correct position after parking, but at {0[tilt_pos]} tilt, {0[pan_pos]} pan"
+                    .format(pos))
+
         except Exception as e:
-            log.error("{}".format(e) )  # debug
+            log.error("{}".format(e))  # debug
             return "ERROR (PARK): {}".format(e)
 
         return "OK"
@@ -470,13 +505,8 @@ class pthead(object):
         return pos_dict
 
 
-
 """Main functions."""
-
-
 """Configuration settings."""
-
-
 """Main loop."""
 
 if __name__ == "__main__":
@@ -486,9 +516,14 @@ if __name__ == "__main__":
     if head.initialize() == "OK":
         print("\n" + ("#" * 30))
         print("Pan/tilt head initialization successful\n")
-        print("Pan/tilt resolution: {:.8f} / {:.8f} degrees per step".format(pan_resolution, tilt_resolution))
-        print("Pan low/high position limits (degrees): {: 6} ({:06.2f}) / {: 6} ({:06.2f})".format(pan_low_limit, (pan_low_limit * pan_resolution), pan_high_limit, (pan_high_limit * pan_resolution)))
-        print("Tilt low/high position limits (degrees): {: 6} ({:06.2f}) / {: 6} ({:06.2f})".format(tilt_low_limit, (tilt_low_limit * tilt_resolution), tilt_high_limit, (tilt_high_limit * tilt_resolution)))
+        print("Pan/tilt resolution: {:.8f} / {:.8f} degrees per step".format(
+            pan_resolution, tilt_resolution))
+        print("Pan low/high position limits (degrees): {: 6} ({:06.2f}) / {: 6} ({:06.2f})".format(
+            pan_low_limit, (pan_low_limit * pan_resolution), pan_high_limit,
+            (pan_high_limit * pan_resolution)))
+        print("Tilt low/high position limits (degrees): {: 6} ({:06.2f}) / {: 6} ({:06.2f})".format(
+            tilt_low_limit, (tilt_low_limit * tilt_resolution), tilt_high_limit,
+            (tilt_high_limit * tilt_resolution)))
         print("#" * 30)
 
     else:
