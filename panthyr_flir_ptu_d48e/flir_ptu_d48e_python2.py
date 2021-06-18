@@ -32,7 +32,9 @@ log = logging.getLogger("__main__.{}".format(__name__))
 class pthead(object):
     """Socket control for the FLIR PTU-D48 pan/tilt head.
     
-    Connection is a socket client to the head.
+    Connection uses a socket client to the head ip.
+
+    Product information page: https://www.flir.eu/products/ptu-d48e/?model=D48E-SS-SS-000-SS
     
     The basic ASCII command syntax is <command><parameter><delimiter>, where:
     - <command> is the actual command
