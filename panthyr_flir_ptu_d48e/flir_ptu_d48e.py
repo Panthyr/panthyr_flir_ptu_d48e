@@ -42,34 +42,40 @@ class HeadCommandError(Exception):
 
 
 class PTHead():
-    """Main control for the FLIR PTU-D48 pan/tilt head.
+    """
+    Main control for the FLIR PTU-D48 pan/tilt head.
 
     Product information page:
     https://www.flir.eu/products/ptu-d48e/?model=D48E-SS-SS-000-SS
 
     The basic ASCII command syntax is <command><parameter><delimiter>, where:
+
     - <command> is the actual command
     - <parameter> is an alphanumeric value
     - <delimiter> Valid delimiter characters can be either [SPACE] or [ENTER].
     - A successfully executed command returns * <CR><LF>
     - A successfully executed query displays <N>* <QueryResult><CR><LF>
     - A failed command displays ! <ErrorMessage><CR><LF>
+
     When in auto stepping mode, the step size is changed dynamically.
     Units are processed as if eight step mode is selected.
 
     Conventions:
-    Pan: rotation of the head in the same plan as its base
-    Tilt: rotation of the head on the horizontal plane of its base
-    pan_position: a specific angle of pan, referenced to the forward direction
+
+    - pan: rotation of the head in the same plan as its base
+    - tilt: rotation of the head on the horizontal plane of its base
+    - pan_position: a specific angle of pan, referenced to the forward direction
         of its base (180 degrees from connector)
         (in steps, negative=CCW seen from top)
-    tilt_position: a specific angle of tilt, referenced to the base of
+    - tilt_position: a specific angle of tilt, referenced to the base of
         the head (in steps, negative is front pointing down)
-    Heading: a specific angle of pan, referenced to the forward direction of
+    - Heading: a specific angle of pan, referenced to the forward direction of
         its base (180 degrees from connector)
         (-180 to 180 degrees, negative=CCW seen from top)
-    Elevation: a specific angle of tilt, referenced to the base
+    - Elevation: a specific angle of tilt, referenced to the base
         of the head (-90 to +30 degrees, negative is front pointing down)
+
+
     """
 
     PAN_RESET_SPEED = 4000
@@ -92,6 +98,7 @@ class PTHead():
                 to enable continuous rotation. Defaults to True.
 
         """
+
         self.log = initialize_logger()
         self._conn = connection
         self._do_reset = do_reset
