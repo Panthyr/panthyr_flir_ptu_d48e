@@ -40,7 +40,7 @@ class PTHeadIPReplyTimeout(Exception):
     pass
 
 
-class PTHeadIPIncorrectReply(Exception):
+class PTHeadIncorrectReply(Exception):
     """Incorrect reply from head"""
     pass
 
@@ -78,7 +78,7 @@ class PTHeadIPConnection(PTHeadConnection):
         self.log = initialize_logger()
 
     def connect(self) -> None:
-        """Set up socket connection"""
+        """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
         except sckt.timeout as e:
@@ -104,7 +104,7 @@ class PTHeadIPConnection(PTHeadConnection):
         The command is sent over the socket connection.
         Within the timeout window, the socket is read out for the reply.
         The reply is then checked. Axis errors are ignored if command is an axis reset command.
-        Exected reply is '*'
+        Expected reply is '*'
 
         Args:
             command (str): Command to be sent (without <CR>)
@@ -112,7 +112,7 @@ class PTHeadIPConnection(PTHeadConnection):
                 for example for move operations.
                 In seconds.
                 Defaults to None.
-        
+
         Raises:
             PTHeadIPReplyTimeout: if head does not respond with full line within timeout
             PTHeadIncorrectReply: if the reply is not correct
@@ -136,7 +136,7 @@ class PTHeadIPConnection(PTHeadConnection):
 
         try:
             self._check_reply(reply, expect_limit_err)
-        except PTHeadIPIncorrectReply:
+        except PTHeadIncorrectReply:
             self.log.error(f'Incorrect reply for command {command}: {reply}', exc_info=True)
             raise
 
@@ -196,7 +196,7 @@ class PTHeadIPConnection(PTHeadConnection):
                     <LF>!T!T*<CR><LF>
 
         Args:
-            timeout (float): reply timeout in seconds 
+            timeout (float): reply timeout in seconds
 
         Raises:
             PTHeadIPReplyTimeout: full/correct reply not received within timeout
@@ -238,7 +238,7 @@ class PTHeadIPConnection(PTHeadConnection):
         """Check reply, raising error if incorrect
 
         If axis errors are to be expected, first strips '!P' and '!T'.
-        Reply should only consist of a '*'. 
+        Reply should only consist of a '*'.
 
         Args:
             reply (str): the reply to be checked
@@ -253,4 +253,4 @@ class PTHeadIPConnection(PTHeadConnection):
             import re
             reply = re.sub('!T|!P', '', reply)
         if reply != '*':
-            raise PTHeadIPIncorrectReply
+            raise PTHeadIncorrectReply
