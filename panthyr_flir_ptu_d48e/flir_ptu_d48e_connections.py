@@ -18,6 +18,7 @@ import logging
 import time
 from typing import Union
 import select
+import socket as sckt
 
 
 def initialize_logger() -> logging.Logger:
@@ -54,8 +55,6 @@ class PTHeadIPConnection(PTHeadConnection):
 
     Provides functions to connect to the pan/tilt head over Ethernet
     """
-    import select
-    import socket as sckt
 
     PTU_IP = '192.168.100.190'
     PTU_PORT = 4000
@@ -81,13 +80,13 @@ class PTHeadIPConnection(PTHeadConnection):
     def connect(self) -> None:
         """Set up socket connection"""
         try:
-            self.socket = self.sckt.create_connection((self.ip, self.port), self.timeout)
-        except self.sckt.timeout as e:
+            self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
+        except sckt.timeout as e:
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port}): {e}'
             self.log.error(msg, exc_info=True)
             raise
         else:
-            self.socket.setsockopt(self.sckt.IPPROTO_TCP, self.sckt.TCP_NODELAY,
+            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
             self._empty_rcv_socket()
 
@@ -140,6 +139,17 @@ class PTHeadIPConnection(PTHeadConnection):
         except PTHeadIPIncorrectReply:
             self.log.error(f'Incorrect reply for command {command}: {reply}', exc_info=True)
             raise
+
+    def _empty_rcv_socket(self) -> None:
+        """Empty the receive buffer of the socket."""
+        while True:
+            read, __, __ = select.select([self.socket], [], [], 0)
+            if len(read) == 0:
+                return
+            self.socket.recv(1)
+
+    def send_query(self, query: str) -> str:
+        pass
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
