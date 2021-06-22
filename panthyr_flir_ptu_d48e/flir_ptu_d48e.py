@@ -16,7 +16,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
-from flir_ptu_d48e_connections import PTHeadConnection
+from .flir_ptu_d48e_connections import PTHeadConnection
 
 
 def initialize_logger() -> logging.Logger:
