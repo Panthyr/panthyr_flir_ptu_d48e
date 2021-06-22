@@ -93,7 +93,7 @@ class PTHead():
 
         Args:
             connection (pthead_connection): communication to the device
-            _do_reset (bool, optional): reset both axes. Defaults to True.
+            do_reset (bool, optional): reset both axes. Defaults to True.
             has_slipring (bool, optional): True for models with slipring
                 to enable continuous rotation. Defaults to True.
 
