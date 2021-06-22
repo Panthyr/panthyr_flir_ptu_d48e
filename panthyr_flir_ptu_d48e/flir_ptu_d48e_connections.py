@@ -90,14 +90,6 @@ class PTHeadIPConnection(PTHeadConnection):
                                    1)  # disable Nagle's algorithm
             self._empty_rcv_socket()
 
-    def _empty_rcv_socket(self) -> None:
-        """Empty the receive buffer of the socket."""
-        while True:
-            read, __, __ = self.select.select([self.socket], [], [], 0)
-            if len(read) == 0:
-                return
-            self.socket.recv(1)
-
     def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
         """Send command and check reply.
 
