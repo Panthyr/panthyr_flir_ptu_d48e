@@ -164,7 +164,7 @@ class PTHeadIPConnection(PTHeadConnection):
         if command[0:2] == 'TP':
             return self.TIMEOUT_TILT
         if command[0:2] == 'PP':
-            return self.TIMEOUT.PAN
+            return self.TIMEOUT_PAN
         if command[0:2] in ['RT', 'RP']:
             return self.TIMEOUT_RST_AXIS
         return self.TIMEOUT_DEFAULT
@@ -228,7 +228,7 @@ class PTHeadIPConnection(PTHeadConnection):
     def _check_reply(self, reply: str, expect_limit_err: bool):
         """Check reply, raising error if incorrect
 
-        If axis errors are to be expected, first strips '!P' and '!T'.
+        If axis errors are to be expected, first strips '!P' and '!T'. 
         Reply should only consist of a '*'.
 
         Args:
