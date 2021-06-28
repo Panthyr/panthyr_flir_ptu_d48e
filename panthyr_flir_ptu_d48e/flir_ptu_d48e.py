@@ -15,7 +15,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
-from .flir_ptu_d48e_connections import PTHeadConnection
+from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
 
 
 def initialize_logger() -> logging.Logger:
@@ -85,7 +85,7 @@ class PTHead():
     TILT_MAX_SPEED = 4000
 
     def __init__(self,
-                 connection: PTHeadConnection,
+                 connection: PTHeadIPConnection,
                  do_reset: bool = True,
                  has_slipring: bool = True) -> None:
         """__init__ for class
@@ -121,7 +121,7 @@ class PTHead():
         for cmd in self._generate_init_cmd():
             try:
                 self._conn.send_cmd(cmd)
-            except HeadCommandError() as e:
+            except HeadCommandError as e:
                 msg = f'Command {cmd} gave reply {e}, head not initialized.'
                 self.log.error(msg, exc_info=True)
                 raise
