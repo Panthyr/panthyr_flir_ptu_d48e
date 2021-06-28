@@ -1,10 +1,9 @@
 #! /usr/bin/python3
 # coding: utf-8
-"""
-Module: flir_ptu_d48e_connections.py
-Authors: Dieter Vansteenwegen
-Institution: VLIZ (Vlaams Institute voor de Zee)
-"""
+
+# Module: flir_ptu_d48e_connections.py
+# Authors: Dieter Vansteenwegen
+# Institution: VLIZ (Vlaams Institute voor de Zee)
 
 __author__ = "Dieter Vansteenwegen"
 __version__ = "0.1b"
