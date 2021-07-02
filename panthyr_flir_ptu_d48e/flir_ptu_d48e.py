@@ -16,8 +16,8 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 import logging
 import time
 from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
-from typing import Union
-from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
+from typing import Union, List
+from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout, PTHeadInvalidPosition
 
 
 def initialize_logger() -> logging.Logger:
@@ -133,16 +133,13 @@ class PTHead():
         return True
 
     def _calculate_resolution(self) -> None:
-        """Calculate the resolution of steps.
+        """Get the resolution of steps.
 
-        Results are in degrees per position.
+        Results are in arc degrees per position.
         PR and TR queries return the resolution in arc degrees per position. 
-        Divide by 3600 to get degrees per position.
         """
-        res_pan_arc = float(self._send_query('PR'))
-        self.resolution_pan = res_pan_arc / 3600
-        res_tilt_arc = float(self._send_query('TR'))
-        self.resolution_tilt = res_tilt_arc / 3600
+        self.resolution_pan = float(self._send_query('PR'))
+        self.resolution_tilt = float(self._send_query('TR'))
 
     def _get_limits(self) -> None:
         # TODO: Check if this is even required.
@@ -329,6 +326,8 @@ class PTHead():
             return self.TIMEOUT_TILT
         if command[0:2] == 'PP':
             return self.TIMEOUT_PAN
+        if command == 'A':
+            return self.TIMEOUT_PAN
         if command[0:2] in ['RT', 'RP']:
             return self.TIMEOUT_RST_AXIS
         return self.TIMEOUT_DEFAULT
@@ -410,3 +409,65 @@ class PTHead():
         dict_rtn['temp_tilt'] = _f_to_c(temps[2])  # type: ignore
 
         return dict_rtn
+
+    def pan_degrees(self):
+        """Pan relative amount.
+
+        Not implemented, included for backward compatibility
+
+        Raises:
+            NotImplemented: because...
+        """
+        raise NotImplemented
+
+    def tilt_degrees(self):
+        """Tilt relative amount.
+
+        Not implemented, included for backward compatibility
+
+        Raises:
+            NotImplemented: because...
+        """
+        raise NotImplemented
+
+    def move_position(self,
+                      heading: Union[None, float] = None,
+                      elevation: Union[None, float] = None) -> None:
+
+        ## list that will contain the commands
+        commands: List[str] = []
+
+        if heading:
+            ## Verify and convert heading to head steps
+            converted_heading_steps = self._check_and_convert_hdg(heading)
+            commands.append(f'PP{converted_heading_steps}')
+
+        ## Add wait command
+        commands.append('A')
+        for cmd in commands:
+            self._send_cmd(cmd)
+
+    def _check_and_convert_hdg(self, heading: float):
+
+        if self.debug:
+            print(f'input for _check_and_convert_hdg = {heading}')
+
+        ## No funny business
+        heading = float(heading) % 360
+
+        ## check if value is reasonable
+        if not (0 <= heading <= 360):
+            raise PTHeadInvalidPosition(
+                f'{heading} is an invalid heading (should be  0 <= x < 360, North referenced)')
+
+        ## convert to +/- 180 degrees
+        if heading > 180:
+            heading -= 360
+
+        if self.debug:
+            print(f'output hdg for _check_and_convert_hdg = {heading}')
+
+        ## calculate steps (resolution is in arcdegrees per step)
+        steps = int(heading * 3600 / self.resolution_pan)
+        ## TODO: check boundaries/user limits
+        return steps

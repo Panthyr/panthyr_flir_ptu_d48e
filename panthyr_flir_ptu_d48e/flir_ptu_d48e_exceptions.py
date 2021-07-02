@@ -9,3 +9,7 @@ class PTHeadNotInitialized(Exception):
 
 class PTHeadIncorrectReply(Exception):
     pass
+
+
+class PTHeadInvalidPosition(Exception):
+    pass
