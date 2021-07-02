@@ -98,7 +98,7 @@ class PTHead():
         """
 
         self.log = initialize_logger()
-        self._conn: Union[PTHeadConnection, PTHeadIPConnection] = connection
+        self._conn: PTHeadIPConnection = connection
         self._do_reset: bool = do_reset
         self.has_slipring: bool = has_slipring
         self.initialized: bool = False
@@ -383,3 +383,30 @@ class PTHead():
         if reply[:2] != '* ':
             raise PTHeadIncorrectReply
         return reply[2:]
+
+    def show_parameters(self) -> dict:
+        """Get voltage and temperatures from head
+
+        Command "O" returns a string as 13.2,99,97,104 where:
+            - 13.2 is the supply voltage
+            - 99 is the head temperature (in Fahrenheit) 
+            - 97 is the pan temperature (in Fahrenheit) 
+            - 104 is the tilt temperature (in Fahrenheit) 
+
+        Returns:
+            dict: contains elements 'voltage', 'temp_head', 'temp_pan', 'temp_tilt'
+                values rounded to one decimal.
+        """
+        dict_rtn = {}
+
+        dict_rtn['voltage'], *temps = self._send_query('O').split(',')
+
+        def _f_to_c(f: str) -> float:
+            c = (float(f) - 32) / 1.8
+            return round(c, 1)
+
+        dict_rtn['temp_head'] = _f_to_c(temps[0])  # type: ignore
+        dict_rtn['temp_pan'] = _f_to_c(temps[1])  # type: ignore
+        dict_rtn['temp_tilt'] = _f_to_c(temps[2])  # type: ignore
+
+        return dict_rtn
