@@ -117,9 +117,6 @@ class PTHeadIPConnection(PTHeadConnection):
                 return
             self.socket.recv(1)
 
-    def send_query(self, query: str) -> str:
-        return ''
-
     def _send_raw(self, command: str) -> None:
         """Send command over socket
 
