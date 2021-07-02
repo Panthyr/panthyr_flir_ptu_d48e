@@ -81,6 +81,7 @@ class PTHead():
     TIMEOUT_TILT = 25
     TIMEOUT_PAN = 32
     TIMEOUT_RST_AXIS = 15
+    TIMEOUT_QUERY = 0.5
 
     def __init__(self,
                  connection: PTHeadIPConnection,
@@ -128,102 +129,6 @@ class PTHead():
         self.initialized = True
 
         return True
-
-    def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
-        """Sends command, but only if head is initialized
-
-        Args:
-            command (str): command to be sent
-            timeout (Union[float,None], optional): timeout. Defaults to None.
-
-        Raises:
-            HeadNotInitialized: If head is not yet initialized
-
-        Returns:
-            None
-        """
-        if not self.initialized:
-            raise PTHeadNotInitialized(
-                'Head is not yet initialized, call initialize function first.')
-        return self._send_cmd(command, timeout)
-
-    # def query(self, query:str)->str:
-    #     rtn = self.con
-    #     return rtn
-    #     pass
-
-    def _send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
-        """Send command to head and check reply
-
-        If required, calculates expected timeout.
-        Sends command and waits for reply.
-        Expects '*' as reply.
-        For axis reset operations, '!T' and '!P' parts of the reply are ignored.
-
-        Args:
-            command (str): command to be sent
-            timeout (Union[float, None], optional): timeout. 
-                If none is given, the timeout constants are used, 
-                    depending on type of command. 
-                Defaults to None.
-        """
-        command = command.upper().strip()
-
-        if not timeout:
-            timeout = self._get_timeout(command)
-
-        try:
-            reply = self._conn.send_and_get(command, timeout)
-        except PTHeadReplyTimeout:
-            self.log.error(f'timeout (>{timeout}) for command {command}')
-            raise
-
-        # expect error messages if command is a reset axis command
-        expect_limit_err = command.upper() in ['RP', 'RT']
-
-        try:
-            self._check_cmd_reply(reply, expect_limit_err)
-        except PTHeadIncorrectReply:
-            self.log.error(f'Incorrect reply "{reply}" for command "{command}"')
-            raise
-
-    def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
-        """Check reply, raising error if incorrect
-
-        If axis errors are to be expected, first strips '!P' and '!T'. 
-        Reply should only consist of a '*'.
-
-        Args:
-            reply (str): the reply to be checked
-            expect_limit_err (bool): set True if command is an axis reset command
-
-        Raises:
-            PTHeadIPIncorrectReply: an incorrect reply was received.
-        """
-
-        if expect_limit_err:
-            # get rid of '!P' and '!T'
-            import re
-            reply = re.sub('!T|!P', '', reply)
-        if reply != '*':
-            raise PTHeadIncorrectReply
-
-    def _get_timeout(self, command: str) -> float:
-        """Get timeout for given command
-
-        Args:
-            command (str): command for which the timeout should be chosen
-
-        Returns:
-            float: timeout value in seconds
-        """
-        if command[0:2] == 'TP':
-            return self.TIMEOUT_TILT
-        if command[0:2] == 'PP':
-            return self.TIMEOUT_PAN
-        if command[0:2] in ['RT', 'RP']:
-            return self.TIMEOUT_RST_AXIS
-        return self.TIMEOUT_DEFAULT
 
     def _generate_init_cmd(self) -> list:
         """Generate list of commands for head initialization.
@@ -300,3 +205,166 @@ class PTHead():
 
         def _get_limits() -> None:
             pass
+
+    def _send_core(self, command: str, timeout: float) -> str:
+        """Basic send function
+
+        Clean up command, send with timeout, return reply
+
+        Args:
+            command (str): command or query
+            timeout (float): timeout for reply
+
+        Returns:
+            str: reply from head
+        """
+        command = command.upper().strip()
+
+        try:
+            return self._conn.send_and_get(command, timeout)
+        except PTHeadReplyTimeout:
+            self.log.error(f'timeout (>{timeout}) for command {command}')
+            raise
+
+    def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
+        """Sends command, but only if head is initialized
+
+        Args:
+            command (str): command to be sent
+            timeout (Union[float,None], optional): timeout. Defaults to None.
+
+        Raises:
+            HeadNotInitialized: If head is not yet initialized
+
+        Returns:
+            None
+        """
+        if not self.initialized:
+            raise PTHeadNotInitialized(
+                'Head is not yet initialized, call initialize function first.')
+        return self._send_cmd(command, timeout)
+
+    # def query(self, query:str)->str:
+    #     rtn = self.con
+    #     return rtn
+    #     pass
+
+    def _send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
+        """Send command to head and check reply
+
+        If required, calculates expected timeout.
+        Sends command and waits for reply.
+        Expects '*' as reply.
+        For axis reset operations, '!T' and '!P' parts of the reply are ignored.
+
+        Args:
+            command (str): command to be sent
+            timeout (Union[float, None], optional): timeout. 
+                If none is given, the timeout constants are used, 
+                    depending on type of command. 
+                Defaults to None.
+        """
+        if not timeout:
+            timeout = self._get_timeout(command)
+
+        reply = self._send_core(command, timeout)
+        if self.debug:
+            print(f'reply from command "{command}": "{reply}"')
+
+        # expect error messages if command is a reset axis command
+        expect_limit_err = command.upper() in ['RP', 'RT']
+
+        try:
+            self._check_cmd_reply(reply, expect_limit_err)
+        except PTHeadIncorrectReply:
+            self.log.error(f'Incorrect reply "{reply}" for command "{command}"')
+            raise
+
+    def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
+        """Check reply, raising error if incorrect
+
+        If axis errors are to be expected, first strips '!P' and '!T'. 
+        Reply should only consist of a '*'.
+
+        Args:
+            reply (str): the reply to be checked
+            expect_limit_err (bool): set True if command is an axis reset command
+
+        Raises:
+            PTHeadIncorrectReply: an incorrect reply was received.
+        """
+
+        if expect_limit_err:
+            # get rid of '!P' and '!T'
+            import re
+            reply = re.sub('!T|!P', '', reply)
+        if reply != '*':
+            raise PTHeadIncorrectReply
+
+    def _get_timeout(self, command: str) -> float:
+        """Get timeout for given command
+
+        Args:
+            command (str): command for which the timeout should be chosen
+
+        Returns:
+            float: timeout value in seconds
+        """
+        if command[0:2] == 'TP':
+            return self.TIMEOUT_TILT
+        if command[0:2] == 'PP':
+            return self.TIMEOUT_PAN
+        if command[0:2] in ['RT', 'RP']:
+            return self.TIMEOUT_RST_AXIS
+        return self.TIMEOUT_DEFAULT
+
+    def send_query(self, query: str) -> str:
+        """Sends query, but only if head is initialized
+
+        Args:
+            query (str): query to be sent
+
+        Raises:
+            PTHeadNotInitialized: If head is not yet initialized
+
+        Returns:
+            str: stripped reply from head
+        """
+        if not self.initialized:
+            raise PTHeadNotInitialized(
+                'Head is not yet initialized, call initialize function first.')
+        return self._send_query(query)
+
+    def _send_query(self, query: str) -> str:
+        """Send query to head and return (clean) reply
+
+        Uses TIMEOUT_QUERY as timeout.
+        Sends query and waits for reply.
+        Expects reply followed by '*'.
+
+        Args:
+            query (str): query to be sent
+
+        Returns:
+            str: clean reply
+        """
+        reply = self._send_core(query, self.TIMEOUT_QUERY)
+        return self._check_query_reply(reply)
+
+    def _check_query_reply(self, reply: str) -> str:
+        """Check reply, raising error if incorrect
+
+        Reply should only consist of a '*', a space and then the value.
+
+        Args:
+            reply (str): the reply to be checked
+
+        Raises:
+            PTHeadIncorrectReply: an incorrect reply was received.
+
+        Resturns:
+            str: the raw value
+        """
+        if reply[:2] != '* ':
+            raise PTHeadIncorrectReply
+        return reply[2:]
