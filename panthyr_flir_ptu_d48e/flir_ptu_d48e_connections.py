@@ -95,6 +95,9 @@ class PTHeadIPConnection(PTHeadConnection):
         Raises:
             PTHeadIPReplyTimeout: if head does not respond with full line within timeout
             PTHeadIncorrectReply: if the reply is not correct
+        
+        Returns:
+            str: reply from head
         """
 
         self._empty_rcv_socket()
