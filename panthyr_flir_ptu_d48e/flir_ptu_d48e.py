@@ -98,11 +98,13 @@ class PTHead():
         """
 
         self.log = initialize_logger()
-        self._conn = connection
-        self._do_reset = do_reset
-        self.has_slipring = has_slipring
-        self.initialized = False
-        self.debug = 0
+        self._conn: Union[PTHeadConnection, PTHeadIPConnection] = connection
+        self._do_reset: bool = do_reset
+        self.has_slipring: bool = has_slipring
+        self.initialized: bool = False
+        self.debug: int = 0
+        self.resolution_pan: float = 0
+        self.resolution_tilt: float = 0
 
     def initialize(self) -> bool:
         """Initialize the pan/tilt
@@ -243,11 +245,6 @@ class PTHead():
             raise PTHeadNotInitialized(
                 'Head is not yet initialized, call initialize function first.')
         return self._send_cmd(command, timeout)
-
-    # def query(self, query:str)->str:
-    #     rtn = self.con
-    #     return rtn
-    #     pass
 
     def _send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
         """Send command to head and check reply
