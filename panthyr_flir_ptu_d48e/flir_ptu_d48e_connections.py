@@ -49,10 +49,6 @@ class PTHeadIPConnection(PTHeadConnection):
     PTU_IP = '192.168.100.190'
     PTU_PORT = 4000
     TIMEOUT_SOCKET = 5
-    TIMEOUT_DEFAULT = 0.5
-    TIMEOUT_TILT = 25
-    TIMEOUT_PAN = 32
-    TIMEOUT_RST_AXIS = 15
 
     def __init__(self, ip: str = PTU_IP, port: int = PTU_PORT, timeout: int = TIMEOUT_SOCKET):
         """__init__ for class
@@ -66,21 +62,22 @@ class PTHeadIPConnection(PTHeadConnection):
         self.port = port
         self.timeout = timeout
         self.log = initialize_logger()
+        self.connect()
 
     def connect(self) -> None:
         """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
-        except sckt.timeout as e:
-            msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port}): {e}'
-            self.log.error(msg, exc_info=True)
+        except sckt.timeout:
+            msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
+            self.log.error(msg)
             raise
         else:
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
             self._empty_rcv_socket()
 
-    def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
+    def send_and_get(self, command: str, timeout: float) -> str:
         """Send command and check reply.
 
         The command is sent over the socket connection.
@@ -99,13 +96,9 @@ class PTHeadIPConnection(PTHeadConnection):
             PTHeadIPReplyTimeout: if head does not respond with full line within timeout
             PTHeadIncorrectReply: if the reply is not correct
         """
-        command = command.upper()
 
         self._empty_rcv_socket()
         self._send_raw(command)
-
-        if not timeout:
-            timeout = self._get_timeout(command)
 
         try:
             reply = self._get_reply(timeout)
@@ -114,14 +107,7 @@ class PTHeadIPConnection(PTHeadConnection):
             self.log.error(msg)
             raise
 
-        # expect error messages if command is a reset axis command
-        expect_limit_err = command.upper() in ['RP', 'RT']
-
-        try:
-            self._check_reply(reply, expect_limit_err)
-        except PTHeadIncorrectReply:
-            self.log.error(f'Incorrect reply for command {command}: {reply}', exc_info=True)
-            raise
+        return reply
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
@@ -132,7 +118,7 @@ class PTHeadIPConnection(PTHeadConnection):
             self.socket.recv(1)
 
     def send_query(self, query: str) -> str:
-        pass
+        return ''
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
@@ -143,23 +129,6 @@ class PTHeadIPConnection(PTHeadConnection):
             command (str): command to be sent
         """
         self.socket.send((command + '\r').encode())
-
-    def _get_timeout(self, command: str) -> float:
-        """Get timeout for given command
-
-        Args:
-            command (str): command for which the timeout should be chosen
-
-        Returns:
-            float: timeout value in seconds
-        """
-        if command[0:2] == 'TP':
-            return self.TIMEOUT_TILT
-        if command[0:2] == 'PP':
-            return self.TIMEOUT_PAN
-        if command[0:2] in ['RT', 'RP']:
-            return self.TIMEOUT_RST_AXIS
-        return self.TIMEOUT_DEFAULT
 
     def _get_reply(self, timeout: float) -> str:
         """Get raw reply within timeout.
@@ -194,15 +163,15 @@ class PTHeadIPConnection(PTHeadConnection):
             # check if there's data in the buffer
             rx += self._rx_from_socket()
 
-            time.sleep(0.1)
+            time.sleep(0.01)
             try:
                 if rx[0] == '\n' and rx[-2:] == '\r\n':
                     return rx[1:-2]
             except IndexError:
                 # not enough data yet
                 pass
-            timeout -= 0.1
-        raise PTHeadIPReplyTimeout(f'Received [{repr(rx)}] after {orig_timeout}s')
+            timeout -= 0.01
+        raise PTHeadReplyTimeout(f'Received [{repr(rx)}] after {orig_timeout}s')
 
     def _rx_from_socket(self) -> str:
         """Try to read from socket.
@@ -216,24 +185,3 @@ class PTHeadIPConnection(PTHeadConnection):
             rx_buffer_readout += self.socket.recv(1).decode()
             rx_waiting, _, _ = select.select([self.socket], [], [], 0)
         return rx_buffer_readout
-
-    def _check_reply(self, reply: str, expect_limit_err: bool):
-        """Check reply, raising error if incorrect
-
-        If axis errors are to be expected, first strips '!P' and '!T'. 
-        Reply should only consist of a '*'.
-
-        Args:
-            reply (str): the reply to be checked
-            expect_limit_err (bool): set True if command is an axis reset command
-
-        Raises:
-            PTHeadIPIncorrectReply: an incorrect reply was received.
-        """
-
-        if expect_limit_err:
-            # get rid of '!P' and '!T'
-            import re
-            reply = re.sub('!T|!P', '', reply)
-        if reply != '*':
-            raise PTHeadIncorrectReply

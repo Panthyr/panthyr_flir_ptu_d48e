@@ -16,6 +16,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 import logging
 import time
 from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
+from typing import Union
 from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
 
 
@@ -71,11 +72,15 @@ class PTHead():
     """
 
     PAN_RESET_SPEED = 4000
-    PAN_CONSTANT_SPEED = 3000  # PS, default: 1000
+    PAN_CONSTANT_SPEED = 4000  # PS, default: 1000
     PAN_MAX_SPEED = 4000
-    TILE_RESET_SPEED = 4000
-    TILT_CONSTANT_SPEED = 3000  # TS, default: 1000
+    TILT_RESET_SPEED = 4000
+    TILT_CONSTANT_SPEED = 4000  # TS, default: 1000
     TILT_MAX_SPEED = 4000
+    TIMEOUT_DEFAULT = 0.5
+    TIMEOUT_TILT = 25
+    TIMEOUT_PAN = 32
+    TIMEOUT_RST_AXIS = 15
 
     def __init__(self,
                  connection: PTHeadIPConnection,
@@ -96,6 +101,7 @@ class PTHead():
         self._do_reset = do_reset
         self.has_slipring = has_slipring
         self.initialized = False
+        self.debug = 0
 
     def initialize(self) -> bool:
         """Initialize the pan/tilt
@@ -106,26 +112,118 @@ class PTHead():
             bool: True if success
         """
         # disable host command echo
-        self._conn.send_cmd('ED')
+        self._send_cmd('ED')
         time.sleep(0.6)
 
         self.initialized = False
 
         for cmd in self._generate_init_cmd():
-            try:
-                self._conn.send_cmd(cmd)
-            except HeadCommandError as e:
-                msg = f'Command {cmd} gave reply {e}, head not initialized.'
-                self.log.error(msg, exc_info=True)
-                raise
+            if self.debug: print(f'command being sent: {cmd}')
+            self._send_cmd(cmd)
 
-        self._calculate_resolution()
-        self._get_limits()
+        # self._calculate_resolution()
+        # self._get_limits()
 
         self._do_reset = False
         self.initialized = True
 
         return True
+
+    def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
+        """Sends command, but only if head is initialized
+
+        Args:
+            command (str): command to be sent
+            timeout (Union[float,None], optional): timeout. Defaults to None.
+
+        Raises:
+            HeadNotInitialized: If head is not yet initialized
+
+        Returns:
+            None
+        """
+        if not self.initialized:
+            raise PTHeadNotInitialized(
+                'Head is not yet initialized, call initialize function first.')
+        return self._send_cmd(command, timeout)
+
+    # def query(self, query:str)->str:
+    #     rtn = self.con
+    #     return rtn
+    #     pass
+
+    def _send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
+        """Send command to head and check reply
+
+        If required, calculates expected timeout.
+        Sends command and waits for reply.
+        Expects '*' as reply.
+        For axis reset operations, '!T' and '!P' parts of the reply are ignored.
+
+        Args:
+            command (str): command to be sent
+            timeout (Union[float, None], optional): timeout. 
+                If none is given, the timeout constants are used, 
+                    depending on type of command. 
+                Defaults to None.
+        """
+        command = command.upper().strip()
+
+        if not timeout:
+            timeout = self._get_timeout(command)
+
+        try:
+            reply = self._conn.send_and_get(command, timeout)
+        except PTHeadReplyTimeout:
+            self.log.error(f'timeout (>{timeout}) for command {command}')
+            raise
+
+        # expect error messages if command is a reset axis command
+        expect_limit_err = command.upper() in ['RP', 'RT']
+
+        try:
+            self._check_cmd_reply(reply, expect_limit_err)
+        except PTHeadIncorrectReply:
+            self.log.error(f'Incorrect reply "{reply}" for command "{command}"')
+            raise
+
+    def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
+        """Check reply, raising error if incorrect
+
+        If axis errors are to be expected, first strips '!P' and '!T'. 
+        Reply should only consist of a '*'.
+
+        Args:
+            reply (str): the reply to be checked
+            expect_limit_err (bool): set True if command is an axis reset command
+
+        Raises:
+            PTHeadIPIncorrectReply: an incorrect reply was received.
+        """
+
+        if expect_limit_err:
+            # get rid of '!P' and '!T'
+            import re
+            reply = re.sub('!T|!P', '', reply)
+        if reply != '*':
+            raise PTHeadIncorrectReply
+
+    def _get_timeout(self, command: str) -> float:
+        """Get timeout for given command
+
+        Args:
+            command (str): command for which the timeout should be chosen
+
+        Returns:
+            float: timeout value in seconds
+        """
+        if command[0:2] == 'TP':
+            return self.TIMEOUT_TILT
+        if command[0:2] == 'PP':
+            return self.TIMEOUT_PAN
+        if command[0:2] in ['RT', 'RP']:
+            return self.TIMEOUT_RST_AXIS
+        return self.TIMEOUT_DEFAULT
 
     def _generate_init_cmd(self) -> list:
         """Generate list of commands for head initialization.
@@ -177,11 +275,9 @@ class PTHead():
 
         init_cmds = [
             'FT', 'PHL', 'THR', 'PML', 'TMH', 'CEC', 'PA2000', 'TA2000', f'PU{self.PAN_MAX_SPEED}',
-            f'TU{self.TILT_MAX_SPEED}'
-            f'PS{self.PAN_CONSTANT_SPEED}'
-            f'TS{self.TILT_CONSTANT_SPEED}'
-            f'RPS{self.PAN_RESET_SPEED}'
-            f'RTS{self.TILE_RESET_SPEED}'
+            f'TU{self.TILT_MAX_SPEED}', f'PS{self.PAN_CONSTANT_SPEED}',
+            f'TS{self.TILT_CONSTANT_SPEED}', f'RPS{self.PAN_RESET_SPEED}',
+            f'RTS{self.TILT_RESET_SPEED}'
         ]
 
         if self._do_reset:
