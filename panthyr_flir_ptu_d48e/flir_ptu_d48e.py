@@ -16,6 +16,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 import logging
 import time
 from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
+from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
 
 
 def initialize_logger() -> logging.Logger:
@@ -30,14 +31,6 @@ def initialize_logger() -> logging.Logger:
         return logging.getLogger('{}'.format(__name__))
     else:
         return logging.getLogger('__main__.{}'.format(__name__))
-
-
-class HeadNotInitialized(Exception):
-    pass
-
-
-class HeadCommandError(Exception):
-    pass
 
 
 class PTHead():

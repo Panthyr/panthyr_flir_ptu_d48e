@@ -18,6 +18,7 @@ import time
 from typing import Union
 import select
 import socket as sckt
+from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
 
 
 def initialize_logger() -> logging.Logger:
@@ -32,16 +33,6 @@ def initialize_logger() -> logging.Logger:
         return logging.getLogger('{}'.format(__name__))
     else:
         return logging.getLogger('__main__.{}'.format(__name__))
-
-
-class PTHeadIPReplyTimeout(Exception):
-    """Timeout waiting for reply from head"""
-    pass
-
-
-class PTHeadIncorrectReply(Exception):
-    """Incorrect reply from head"""
-    pass
 
 
 class PTHeadConnection():
@@ -118,8 +109,9 @@ class PTHeadIPConnection(PTHeadConnection):
 
         try:
             reply = self._get_reply(timeout)
-        except PTHeadIPReplyTimeout as e:
-            self.log.error(e, exc_info=True)
+        except PTHeadReplyTimeout as e:
+            msg = str(e) + f' for command "{command}"'
+            self.log.error(msg)
             raise
 
         # expect error messages if command is a reset axis command
