@@ -124,13 +124,31 @@ class PTHead():
             if self.debug: print(f'command being sent: {cmd}')
             self._send_cmd(cmd)
 
-        # self._calculate_resolution()
-        # self._get_limits()
+        self._calculate_resolution()
+        self._get_limits()
 
         self._do_reset = False
         self.initialized = True
 
         return True
+
+    def _calculate_resolution(self) -> None:
+        """Calculate the resolution of steps.
+
+        Results are in degrees per position.
+        PR and TR queries return the resolution in arc degrees per position. 
+        Divide by 3600 to get degrees per position.
+        """
+        res_pan_arc = float(self._send_query('PR'))
+        self.resolution_pan = res_pan_arc / 3600
+        res_tilt_arc = float(self._send_query('TR'))
+        self.resolution_tilt = res_tilt_arc / 3600
+
+    def _get_limits(self) -> None:
+        # TODO: Check if this is even required.
+        # User limits are set by _generate_init_cmd and are not used for pan if
+        # unit has slipring...
+        pass
 
     def _generate_init_cmd(self) -> list:
         """Generate list of commands for head initialization.
