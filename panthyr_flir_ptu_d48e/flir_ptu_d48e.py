@@ -114,14 +114,14 @@ class PTHead():
         Returns:
             bool: True if success
         """
+        # head needs a bit of time to display welcome message, which we don't want to parse
+        time.sleep(0.6)
         # disable host command echo
         self._send_cmd('ED')
-        time.sleep(0.6)
 
         self.initialized = False
 
         for cmd in self._generate_init_cmd():
-            if self.debug: print(f'command being sent: {cmd}')
             self._send_cmd(cmd)
 
         self._calculate_resolution()
