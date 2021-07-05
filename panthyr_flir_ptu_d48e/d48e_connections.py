@@ -18,7 +18,7 @@ import time
 from typing import Union
 import select
 import socket as sckt
-from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
+from .d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
 
 
 def initialize_logger() -> logging.Logger:

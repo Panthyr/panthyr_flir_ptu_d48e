@@ -15,9 +15,9 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
-from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
+from .d48e_connections import PTHeadConnection, PTHeadIPConnection
 from typing import Union, List
-from .flir_ptu_d48e_exceptions import *
+from .d48e_exceptions import *
 
 
 def initialize_logger() -> logging.Logger:
@@ -447,9 +447,9 @@ class PTHead():
         for cmd in commands:
             self._send_cmd(cmd)
 
-        return self._check_corr_position(target_pos)
+        return self._check_correct_position(target_pos)
 
-    def _check_corr_position(self, target_pos: list) -> None:
+    def _check_correct_position(self, target_pos: list) -> None:
         """Check if current position matches the intended/target position.
 
         Set heading or elevation to None to ignore that axis.
@@ -499,8 +499,8 @@ class PTHead():
             ## Verify and convert heading to head steps
             target_pos[0] = self._check_and_convert_hdg(heading)
 
-        # if elevation:
-        #     target_pos[1] = self._check_and_convert_elevation(elevation)
+        if elevation:
+            target_pos[1] = self._check_and_convert_elevation(elevation)
         return target_pos
 
     def _generate_move_cmds(self, target_pos: list) -> list[str]:
@@ -552,7 +552,7 @@ class PTHead():
         ## check if value is reasonable
         if not (0 <= heading <= 360):
             raise PTHeadInvalidTargetPosition(
-                f'{heading} is an invalid heading (should be  0 <= x < 360, North referenced)')
+                f'{heading} is an invalid heading (should be  0 <= x < 360)')
 
         ## convert to +/- 180 degrees
         if heading > 180:
@@ -565,4 +565,29 @@ class PTHead():
         steps = int(heading * 3600 / self.resolution_pan)
 
         ## TODO: check boundaries/user limits
+        return steps
+
+    def _check_and_convert_elevation(self, elevation: float) -> int:
+        # sourcery skip: inline-immediately-returned-variable
+        """Check angular elevation and convert to steps.
+
+        Check target heading against user limits, then convert to steps.
+
+        Args:
+            elevation (float): angular elevation (-30 -> 90)
+
+        Raises:
+            PTHeadInvalidTargetPosition: target elevation is not valid
+
+        Returns:
+            int: elevation in steps
+        """
+        ## check if value is reasonable
+        if not (-30 <= elevation <= 90):
+            raise PTHeadInvalidTargetPosition(
+                f'{elevation} is an invalid elevation (should be  -30 <= x < 90)')
+
+        ## calculate steps (resolution is in arcdegrees per step)
+        steps = int(elevation * 3600 / self.resolution_tilt)
+
         return steps
