@@ -433,21 +433,115 @@ class PTHead():
     def move_position(self,
                       heading: Union[None, float] = None,
                       elevation: Union[None, float] = None) -> None:
+        """Move the head to a specific heading and/or elevation.
 
-        ## list that will contain the commands
-        commands: List[str] = []
+        Setting either heading or elevation to None will not move that axis.
 
-        if heading:
-            ## Verify and convert heading to head steps
-            converted_heading_steps = self._check_and_convert_hdg(heading)
-            commands.append(f'PP{converted_heading_steps}')
+        Args:
+            heading (Union[None, float], optional): heading in degrees, -180 -> 180 . Defaults to None.
+            elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Defaults to None.
+        """
+        target_pos = self._convert_pos(heading, elevation)
+        commands = self._generate_move_cmds(target_pos)
 
-        ## Add wait command
-        commands.append('A')
         for cmd in commands:
             self._send_cmd(cmd)
 
-    def _check_and_convert_hdg(self, heading: float):
+        return self._check_corr_position(target_pos)
+
+    def _check_corr_position(self, target_pos: list) -> None:
+        """Check if current position matches the intended/target position.
+
+        Set heading or elevation to None to ignore that axis.
+
+        Args:
+            target_pos (list): list of [heading,elevation] of where the head should be.
+
+        Raises:
+            PTHeadMoveError: Move was not succesful, one of the axis is not at the correct location.
+        """
+        cur_pos = self.current_pos()
+        err_msg = 'error during move to {}: target position {}, current position {}'
+        if target_pos[0] and (target_pos[0] != cur_pos[0]):
+            raise PTHeadMoveError(err_msg.format('heading', target_pos[0], cur_pos[0]))
+        if target_pos[1] and (target_pos[1] != cur_pos[1]):
+            raise PTHeadMoveError(err_msg.format('elevation', target_pos[1], cur_pos[1]))
+
+    def current_pos(self) -> list:
+        """Return current position in steps.
+
+        Returns:
+            list: [heading, elevation] in steps
+        """
+        cur_pos = [None, None]
+
+        cur_pos[0] = self.send_query('PP')  # type: ignore
+        cur_pos[1] = self.send_query('TP')  # type: ignore
+
+        return cur_pos
+
+    def _convert_pos(self,
+                     heading: Union[None, float] = None,
+                     elevation: Union[None, float] = None) -> list:
+        """Check angular heading/elevation and convert to steps.
+
+        Args:
+            heading (Union[None, float], optional): heading in degrees, -180 -> 180. Defaults to None.
+            elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Defaults to None.
+
+        Returns:
+            list: checked [heading,elevation] in steps
+        """
+
+        target_pos: list[Union[None, int]] = [None, None]
+
+        if heading:
+            ## Verify and convert heading to head steps
+            target_pos[0] = self._check_and_convert_hdg(heading)
+
+        # if elevation:
+        #     target_pos[1] = self._check_and_convert_elevation(elevation)
+        return target_pos
+
+    def _generate_move_cmds(self, target_pos: list) -> list[str]:
+        """Generate a list of commands to move to the target position and wait.
+
+        Generates commands for pan/tilt movement (if target position is not None), then adds 'A' to wait after the last axis command.
+
+        Args:
+            target_pos (list): target position [heading, elevation] in steps.
+
+        Returns:
+            list[str]: list of commands
+        """
+        commands = []
+        # Change heading?
+        if target_pos[0]:
+            commands.append(f'PP{target_pos[0]}')
+        # Change elevation?
+        if target_pos[1]:
+            commands.append(f'TP{target_pos[1]}')
+        # Add wait command
+        commands.append('A')
+        return commands
+
+    def _check_and_convert_hdg(self, heading: float) -> int:
+        # sourcery skip: inline-immediately-returned-variable
+        """Check angular heading and convert to steps.
+
+        If self.has_slipring is True, no check is done.
+        Otherwise, check target heading against user limits.
+        Then convert to steps.
+
+        Args:
+            heading (float): angular heading
+
+        Raises:
+            PTHeadInvalidTargetPosition: target heading is not a valid angular heading
+
+        Returns:
+            int: heading in steps
+        """
 
         if self.debug:
             print(f'input for _check_and_convert_hdg = {heading}')
@@ -457,7 +551,7 @@ class PTHead():
 
         ## check if value is reasonable
         if not (0 <= heading <= 360):
-            raise PTHeadInvalidPosition(
+            raise PTHeadInvalidTargetPosition(
                 f'{heading} is an invalid heading (should be  0 <= x < 360, North referenced)')
 
         ## convert to +/- 180 degrees
@@ -469,5 +563,6 @@ class PTHead():
 
         ## calculate steps (resolution is in arcdegrees per step)
         steps = int(heading * 3600 / self.resolution_pan)
+
         ## TODO: check boundaries/user limits
         return steps
