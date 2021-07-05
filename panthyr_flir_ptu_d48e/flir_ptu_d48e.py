@@ -17,7 +17,7 @@ import logging
 import time
 from .flir_ptu_d48e_connections import PTHeadConnection, PTHeadIPConnection
 from typing import Union, List
-from .flir_ptu_d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout, PTHeadInvalidPosition
+from .flir_ptu_d48e_exceptions import *
 
 
 def initialize_logger() -> logging.Logger:
