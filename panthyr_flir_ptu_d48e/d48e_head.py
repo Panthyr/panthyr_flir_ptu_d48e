@@ -16,7 +16,7 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 import logging
 import time
 from .d48e_connections import PTHeadConnection, PTHeadIPConnection
-from typing import Union, List
+from typing import Union, List, Dict
 from .d48e_exceptions import *
 
 
@@ -97,7 +97,7 @@ class PTHead():
 
         """
 
-        self.log = initialize_logger()
+        self._log = initialize_logger()
         self._conn: PTHeadIPConnection = connection
         self._do_reset: bool = do_reset
         self.has_slipring: bool = has_slipring
@@ -114,7 +114,8 @@ class PTHead():
         Returns:
             bool: True if success
         """
-        # head needs a bit of time to display welcome message, which we don't want to parse
+        # head needs a bit of time to display
+        # welcome message, which we don't want to parse
         time.sleep(0.6)
         # disable host command echo
         self._send_cmd('ED')
@@ -147,7 +148,7 @@ class PTHead():
         # unit has slipring...
         pass
 
-    def _generate_init_cmd(self) -> list:
+    def _generate_init_cmd(self) -> List:
         """Generate list of commands for head initialization.
 
         Commands to be send depend on the following:
@@ -213,7 +214,7 @@ class PTHead():
         else:
             init_cmds.extend(['TNU-27999', 'TXU9333', 'PNU-27067', 'PXU27067', 'LU'])
 
-        self.log.debug(f'Commands generated for init: {init_cmds}')
+        self._log.debug(f'Commands generated for init: {init_cmds}')
 
         return init_cmds
 
@@ -240,7 +241,7 @@ class PTHead():
         try:
             return self._conn.send_and_get(command, timeout)
         except PTHeadReplyTimeout:
-            self.log.error(f'timeout (>{timeout}) for command {command}')
+            self._log.error(f'timeout (>{timeout}) for command {command}')
             raise
 
     def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
@@ -289,7 +290,7 @@ class PTHead():
         try:
             self._check_cmd_reply(reply, expect_limit_err)
         except PTHeadIncorrectReply:
-            self.log.error(f'Incorrect reply "{reply}" for command "{command}"')
+            self._log.error(f'Incorrect reply "{reply}" for command "{command}"')
             raise
 
     def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
@@ -383,17 +384,17 @@ class PTHead():
             raise PTHeadIncorrectReply
         return reply[2:]
 
-    def show_parameters(self) -> dict:
+    def show_parameters(self) -> Dict:
         """Get voltage and temperatures from head
 
-        Command "O" returns a string as 13.2,99,97,104 where:
+        Command "O" returns a string as '13.2,99,97,104' where:
             - 13.2 is the supply voltage
             - 99 is the head temperature (in Fahrenheit) 
             - 97 is the pan temperature (in Fahrenheit) 
             - 104 is the tilt temperature (in Fahrenheit) 
 
         Returns:
-            dict: contains elements 'voltage', 'temp_head', 'temp_pan', 'temp_tilt'
+            Dict: contains elements 'voltage', 'temp_head', 'temp_pan', 'temp_tilt'
                 values rounded to one decimal.
         """
         dict_rtn = {}
@@ -449,7 +450,7 @@ class PTHead():
 
         return self._check_correct_position(target_pos)
 
-    def _check_correct_position(self, target_pos: list) -> None:
+    def _check_correct_position(self, target_pos: List) -> None:
         """Check if current position matches the intended/target position.
 
         Set heading or elevation to None to ignore that axis.
@@ -467,7 +468,7 @@ class PTHead():
         if target_pos[1] and (target_pos[1] != cur_pos[1]):
             raise PTHeadMoveError(err_msg.format('elevation', target_pos[1], cur_pos[1]))
 
-    def current_pos(self) -> list:
+    def current_pos(self) -> List:
         """Return current position in steps.
 
         Returns:
@@ -493,17 +494,17 @@ class PTHead():
             list: checked [heading,elevation] in steps
         """
 
-        target_pos: list[Union[None, int]] = [None, None]
+        target_pos: List[Union[None, int]] = [None, None]
 
-        if heading:
+        if heading is not None:
             ## Verify and convert heading to head steps
             target_pos[0] = self._check_and_convert_hdg(heading)
 
-        if elevation:
+        if elevation is not None:
             target_pos[1] = self._check_and_convert_elevation(elevation)
         return target_pos
 
-    def _generate_move_cmds(self, target_pos: list) -> list[str]:
+    def _generate_move_cmds(self, target_pos: List) -> List[str]:
         """Generate a list of commands to move to the target position and wait.
 
         Generates commands for pan/tilt movement (if target position is not None), then adds 'A' to wait after the last axis command.
@@ -516,10 +517,10 @@ class PTHead():
         """
         commands = []
         # Change heading?
-        if target_pos[0]:
+        if target_pos[0] is not None:
             commands.append(f'PP{target_pos[0]}')
         # Change elevation?
-        if target_pos[1]:
+        if target_pos[1] is not None:
             commands.append(f'TP{target_pos[1]}')
         # Add wait command
         commands.append('A')
