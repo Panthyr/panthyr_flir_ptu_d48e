@@ -431,9 +431,9 @@ class PTHead():
         """
         raise NotImplemented
 
-    def move_position(self,
-                      heading: Union[None, float] = None,
-                      elevation: Union[None, float] = None) -> None:
+    def move_pos_deg(self,
+                     heading: Union[None, float] = None,
+                     elevation: Union[None, float] = None) -> None:
         """Move the head to a specific heading and/or elevation.
 
         Setting either heading or elevation to None will not move that axis.
@@ -442,7 +442,7 @@ class PTHead():
             heading (Union[None, float], optional): heading in degrees, -180 -> 180 . Defaults to None.
             elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Defaults to None.
         """
-        target_pos = self._convert_pos(heading, elevation)
+        target_pos = self._convert_pos_to_steps(heading, elevation)
         commands = self._generate_move_cmds(target_pos)
 
         for cmd in commands:
@@ -481,9 +481,24 @@ class PTHead():
 
         return cur_pos
 
-    def _convert_pos(self,
-                     heading: Union[None, float] = None,
-                     elevation: Union[None, float] = None) -> list:
+    def current_pos_deg(self) -> List:
+        """Return current position in degrees.
+
+        Returns:
+            list: [heading, elevation] in degrees
+        """
+        pos_steps = self.current_pos()
+        print(pos_steps)
+        rtn: List = [None, None]
+        import pdb
+        pdb.set_trace()
+        rtn[0] = round((pos_steps[0] * self.resolution_pan) / 3600, 1)
+        rtn[1] = round((pos_steps[1] * self.resolution_tilt) / 3600, 1)
+        return rtn
+
+    def _convert_pos_to_steps(self,
+                              heading: Union[None, float] = None,
+                              elevation: Union[None, float] = None) -> List:
         """Check angular heading/elevation and convert to steps.
 
         Args:
@@ -575,7 +590,7 @@ class PTHead():
         Check target heading against user limits, then convert to steps.
 
         Args:
-            elevation (float): angular elevation (-30 -> 90)
+            elevation (float): angular elevation (-90 -> 30)
 
         Raises:
             PTHeadInvalidTargetPosition: target elevation is not valid
@@ -584,9 +599,9 @@ class PTHead():
             int: elevation in steps
         """
         ## check if value is reasonable
-        if not (-30 <= elevation <= 90):
+        if not (-90 <= elevation <= 30):
             raise PTHeadInvalidTargetPosition(
-                f'{elevation} is an invalid elevation (should be  -30 <= x < 90)')
+                f'{elevation} is an invalid elevation (should be  -90 <= x < 30)')
 
         ## calculate steps (resolution is in arcdegrees per step)
         steps = int(elevation * 3600 / self.resolution_tilt)
