@@ -1,0 +1,59 @@
+# Basic .gitattributes for a python repo.
+
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Source files
+# ============
+*.pxd    text diff=python
+*.py     text diff=python eol=lf
+*.py3    text diff=python
+*.pyw    text diff=python
+*.pyx    text diff=python
+*.pyz    text diff=python
+
+# Binary files
+# ============
+*.db     binary
+*.p      binary
+*.pkl    binary
+*.pickle binary
+*.pyc    binary
+*.pyd    binary
+*.pyo    binary
+
+
+# General filetypes:
+# Documents
+*.md       text diff=markdown
+*.csv      text
+*.tab      text
+*.txt      text
+*.sql      text
+*.ps1      text eol=crlf
+
+
+# Scripts
+*.bash     text eol=lf
+*.sh       text eol=lf
+# These are explicitly windows files and should use crlf
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+
+# Serialisation
+*.json     text
+*.toml     text
+*.xml      text
+*.yaml     text
+*.yml      text
+
+# Text files where line endings should be preserved
+*.patch    -text
+
+#
+# Exclude files from exporting
+#
+
+.gitattributes export-ignore
+.gitignore     export-ignore
+.gitkeep       export-ignore
