@@ -462,11 +462,17 @@ class PTHead():
             PTHeadMoveError: Move was not succesful, one of the axis is not at the correct location.
         """
         cur_pos = self.current_pos()
-        err_msg = 'error during move to {}: target position {}, current position {}'
+        err_msg = 'target {} position is "{}" but current position is "{}"'
+        err = []
         if target_pos[0] and (target_pos[0] != cur_pos[0]):
-            raise PTHeadMoveError(err_msg.format('heading', target_pos[0], cur_pos[0]))
+            err.append(err_msg.format('heading', target_pos[0], cur_pos[0]))
         if target_pos[1] and (target_pos[1] != cur_pos[1]):
-            raise PTHeadMoveError(err_msg.format('elevation', target_pos[1], cur_pos[1]))
+            err.append(err_msg.format('elevation', target_pos[1], cur_pos[1]))
+
+        if err:
+            msg = 'error during move: '
+            msg += ', '.join(err)
+            raise PTHeadMoveError(msg)
 
     def current_pos(self) -> List:
         """Return current position in steps.
@@ -476,8 +482,8 @@ class PTHead():
         """
         cur_pos = [None, None]
 
-        cur_pos[0] = self.send_query('PP')  # type: ignore
-        cur_pos[1] = self.send_query('TP')  # type: ignore
+        cur_pos[0] = int(self.send_query('PP'))  # type: ignore
+        cur_pos[1] = int(self.send_query('TP'))  # type: ignore
 
         return cur_pos
 
