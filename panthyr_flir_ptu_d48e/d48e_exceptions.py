@@ -20,10 +20,14 @@ class PTHeadIncorrectReply(Exception):
 
 
 class PTHeadInvalidTargetPosition(Exception):
-    """"""
+    """
+    Requested target position is not valid.
+    
+    Position might be in an invalid format or out of hardware/user limits.
+    """
     pass
 
 
 class PTHeadMoveError(Exception):
-    """"""
+    """Head is not where it should be after a move action."""
     pass
