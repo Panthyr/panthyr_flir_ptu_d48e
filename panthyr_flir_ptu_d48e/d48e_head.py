@@ -613,3 +613,7 @@ class PTHead():
         steps = int(elevation * 3600 / self.resolution_tilt)
 
         return steps
+
+    def park(self) -> None:
+        """Put the head in park position ([0,-90])"""
+        self.move_pos_deg(0, -90)
