@@ -93,7 +93,7 @@ class PTHeadIPConnection(PTHeadConnection):
                 Defaults to None.
 
         Raises:
-            PTHeadIPReplyTimeout: if head does not respond with full line within timeout
+            PTHeadReplyTimeout: if head does not respond with full line within timeout
             PTHeadIncorrectReply: if the reply is not correct
         
         Returns:
