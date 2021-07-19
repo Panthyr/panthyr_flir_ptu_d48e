@@ -106,8 +106,19 @@ class PTHeadIPConnection(PTHeadConnection):
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
-            msg = str(e) + f' for command "{command}"'
-            self._log.error(msg)
+            try:
+                # this will try to read bytes without blocking and also without removing them from buffer (peek only)
+                data = self.socket.recv(16, self.socket.MSG_DONTWAIT | self.MSG_PEEK)
+                conn_up = f'len data: {len(data)}'
+            except BlockingIOError:
+                conn_up = 'BlockingIOError'
+            except ConnectionResetError:
+                conn_up = 'ConnectionResetError'
+            except Exception as e:
+                conn_up = f'other exception: {e}'
+
+            msg = str(e) + f' for command "{command}", conn_up replied {conn_up}'
+            self._log.error(msg, exc_info=True)
             raise
 
         return reply
