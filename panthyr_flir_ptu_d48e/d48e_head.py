@@ -218,12 +218,6 @@ class PTHead():
 
         return init_cmds
 
-        def _calculate_resolution() -> None:
-            pass
-
-        def _get_limits() -> None:
-            pass
-
     def _send_core(self, command: str, timeout: float) -> str:
         """Basic send function
 
