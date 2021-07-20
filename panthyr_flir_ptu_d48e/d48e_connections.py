@@ -106,8 +106,6 @@ class PTHeadIPConnection(PTHeadConnection):
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
-            ## TODO: below triggers "UnboundLocalError: local variable 'e' referenced before assignment"
-            print(e)
             msg = str(e) + f' for command "{command}"'
             self._log.error(msg)
             raise
