@@ -17,7 +17,6 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'Panthyr FLIR PTU-D48e'
-copyright = '2021, Dieter Vansteenwegen'
 author = 'Dieter Vansteenwegen'
 
 # The full version, including alpha/beta/rc tags
