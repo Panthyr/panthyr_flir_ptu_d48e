@@ -1,9 +1,8 @@
 #! /usr/bin/python3
-# coding: utf-8
-
+# -*- coding: utf-8 -*-
 # Module: flir_ptu_d48e.py
 # Authors: Dieter Vansteenwegen
-# Institution: VLIZ (Vlaams Institute voor de Zee)
+# Institution: VLIZ (Vlaams Instituut voor de Zee)
 
 __author__ = 'Dieter Vansteenwegen'
 __version__ = '0.1b'
@@ -15,9 +14,9 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
-from .d48e_connections import PTHeadConnection, PTHeadIPConnection
+from .d48e_connections import PTHeadIPConnection
 from typing import Union, List, Dict
-from .d48e_exceptions import *
+from .d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout, PTHeadInvalidTargetPosition, PTHeadMoveError
 
 
 def initialize_logger() -> logging.Logger:
@@ -374,18 +373,19 @@ class PTHead():
         Resturns:
             str: the raw value
         """
-        if reply[:2] != '* ':
+        if reply.startswith('* '):
+            return reply[2:]
+        else:
             raise PTHeadIncorrectReply
-        return reply[2:]
 
     def show_parameters(self) -> Dict:
         """Get voltage and temperatures from head
 
         Command "O" returns a string as '13.2,99,97,104' where:
             - 13.2 is the supply voltage
-            - 99 is the head temperature (in Fahrenheit) 
-            - 97 is the pan temperature (in Fahrenheit) 
-            - 104 is the tilt temperature (in Fahrenheit) 
+            - 99 is the head temperature (in Fahrenheit)
+            - 97 is the pan temperature (in Fahrenheit)
+            - 104 is the tilt temperature (in Fahrenheit)
 
         Returns:
             Dict: contains elements 'voltage', 'temp_head', 'temp_pan', 'temp_tilt'
@@ -413,7 +413,7 @@ class PTHead():
         Raises:
             NotImplemented: because...
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def tilt_degrees(self):
         """Tilt relative amount.
@@ -423,7 +423,7 @@ class PTHead():
         Raises:
             NotImplemented: because...
         """
-        raise NotImplemented
+        raise NotImplementedError
 
     def move_pos_deg(self,
                      heading: Union[None, float] = None,
@@ -433,8 +433,8 @@ class PTHead():
         Setting either heading or elevation to None will not move that axis.
 
         Args:
-            heading (Union[None, float], optional): heading in degrees, -180 -> 180 . Defaults to None.
-            elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Defaults to None.
+            heading (Union[None, float], optional): heading in degs, -180 -> 180 . Default None.
+            elevation (Union[None, float], optional): elevation in degs, -30 -> 90. Default None.
         """
         target_pos = self._convert_pos_to_steps(heading, elevation)
         commands = self._generate_move_cmds(target_pos)
@@ -453,7 +453,8 @@ class PTHead():
             target_pos (list): list of [heading,elevation] of where the head should be.
 
         Raises:
-            PTHeadMoveError: Move was not succesful, one of the axis is not at the correct location.
+            PTHeadMoveError: Move was not succesful,
+                one of the axis is not at the correct location.
         """
         cur_pos = self.current_pos()
         err_msg = 'target {} position is "{}" but current position is "{}"'
@@ -502,8 +503,8 @@ class PTHead():
         """Check angular heading/elevation and convert to steps.
 
         Args:
-            heading (Union[None, float], optional): heading in degrees, -180 -> 180. Defaults to None.
-            elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Defaults to None.
+            heading (Union[None, float], optional): heading in degrees, -180 -> 180. Default None.
+            elevation (Union[None, float], optional): elevation in degrees, -30 -> 90. Default None.
 
         Returns:
             list: checked [heading,elevation] in steps
@@ -512,7 +513,7 @@ class PTHead():
         target_pos: List[Union[None, int]] = [None, None]
 
         if heading is not None:
-            ## Verify and convert heading to head steps
+            # Verify and convert heading to head steps
             target_pos[0] = self._check_and_convert_hdg(heading)
 
         if elevation is not None:
@@ -522,7 +523,8 @@ class PTHead():
     def _generate_move_cmds(self, target_pos: List) -> List[str]:
         """Generate a list of commands to move to the target position and wait.
 
-        Generates commands for pan/tilt movement (if target position is not None), then adds 'A' to wait after the last axis command.
+        Generates commands for pan/tilt movement (if target position is not None), 
+                then adds 'A' to wait after the last axis command.
 
         Args:
             target_pos (list): target position [heading, elevation] in steps.
@@ -562,25 +564,25 @@ class PTHead():
         if self.debug:
             print(f'input for _check_and_convert_hdg = {heading}')
 
-        ## No funny business
+        # No funny business
         heading = float(heading) % 360
 
-        ## check if value is reasonable
+        # check if value is reasonable
         if not (0 <= heading <= 360):
             raise PTHeadInvalidTargetPosition(
                 f'{heading} is an invalid heading (should be  0 <= x < 360)')
 
-        ## convert to +/- 180 degrees
+        # convert to +/- 180 degrees
         if heading > 180:
             heading -= 360
 
         if self.debug:
             print(f'output hdg for _check_and_convert_hdg = {heading}')
 
-        ## calculate steps (resolution is in arcdegrees per step)
+        # calculate steps (resolution is in arcdegrees per step)
         steps = int(heading * 3600 / self.resolution_pan)
 
-        ## TODO: check boundaries/user limits
+        # TODO: check boundaries/user limits
         return steps
 
     def _check_and_convert_elevation(self, elevation: float) -> int:
@@ -598,12 +600,12 @@ class PTHead():
         Returns:
             int: elevation in steps
         """
-        ## check if value is reasonable
+        # check if value is reasonable
         if not (-90 <= elevation <= 30):
             raise PTHeadInvalidTargetPosition(
                 f'{elevation} is an invalid elevation (should be  -90 <= x < 30)')
 
-        ## calculate steps (resolution is in arcdegrees per step)
+        # calculate steps (resolution is in arcdegrees per step)
         steps = int(elevation * 3600 / self.resolution_tilt)
 
         return steps

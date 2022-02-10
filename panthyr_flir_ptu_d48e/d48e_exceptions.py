@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 __all__ = [
     'PTHeadIncorrectReply', 'PTHeadNotInitialized', 'PTHeadReplyTimeout',
     'PTHeadInvalidTargetPosition', 'PTHeadMoveError'
@@ -22,7 +23,7 @@ class PTHeadIncorrectReply(Exception):
 class PTHeadInvalidTargetPosition(Exception):
     """
     Requested target position is not valid.
-    
+
     Position might be in an invalid format or out of hardware/user limits.
     """
     pass

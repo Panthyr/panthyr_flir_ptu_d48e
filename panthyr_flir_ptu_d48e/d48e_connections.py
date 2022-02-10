@@ -1,24 +1,22 @@
 #! /usr/bin/python3
-# coding: utf-8
-
+# -*- coding: utf-8 -*-
 # Module: flir_ptu_d48e_connections.py
 # Authors: Dieter Vansteenwegen
-# Institution: VLIZ (Vlaams Institute voor de Zee)
+# Institution: VLIZ (Vlaams Instituut voor de Zee)
 
-__author__ = "Dieter Vansteenwegen"
-__version__ = "0.1b"
-__credits__ = "Dieter Vansteenwegen"
-__email__ = "dieter.vansteenwegen@vliz.be"
-__status__ = "Development"
-__project__ = "Panthyr"
-__project_link__ = "https://waterhypernet.org/equipment/"
+__author__ = 'Dieter Vansteenwegen'
+__version__ = '0.1b'
+__credits__ = 'Dieter Vansteenwegen'
+__email__ = 'dieter.vansteenwegen@vliz.be'
+__status__ = 'Development'
+__project__ = 'Panthyr'
+__project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
-from typing import Union
 import select
 import socket as sckt
-from .d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout
+from .d48e_exceptions import PTHeadReplyTimeout
 
 
 def initialize_logger() -> logging.Logger:
@@ -95,7 +93,7 @@ class PTHeadIPConnection(PTHeadConnection):
         Raises:
             PTHeadReplyTimeout: if head does not respond with full line within timeout
             PTHeadIncorrectReply: if the reply is not correct
-        
+
         Returns:
             str: reply from head
         """
