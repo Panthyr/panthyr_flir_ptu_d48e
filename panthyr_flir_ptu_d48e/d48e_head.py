@@ -1,13 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-# Module: flir_ptu_d48e.py
 # Authors: Dieter Vansteenwegen
 # Institution: VLIZ (Vlaams Instituut voor de Zee)
 
 __author__ = 'Dieter Vansteenwegen'
-__version__ = '0.1b'
 __email__ = 'dieter.vansteenwegen@vliz.be'
-__status__ = 'Development'
 __project__ = 'Panthyr'
 __project_link__ = 'https://waterhypernet.org/equipment/'
 
@@ -233,7 +230,7 @@ class PTHead():
         try:
             return self._conn.send_and_get(command, timeout)
         except PTHeadReplyTimeout:
-            self._log.error(f'timeout (>{timeout}) for command {command}')
+            self._log.exception(f'timeout (>{timeout}) for command {command}')
             raise
 
     def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
@@ -282,7 +279,7 @@ class PTHead():
         try:
             self._check_cmd_reply(reply, expect_limit_err)
         except PTHeadIncorrectReply:
-            self._log.error(f'Incorrect reply "{reply}" for command "{command}"')
+            self._log.exception(f'Incorrect reply "{reply}" for command "{command}"')
             raise
 
     def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
