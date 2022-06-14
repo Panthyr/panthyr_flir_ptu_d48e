@@ -77,6 +77,7 @@ class PTHead():
     TIMEOUT_PAN = 32
     TIMEOUT_RST_AXIS = 15
     TIMEOUT_QUERY = 0.5
+    TIMEOUT_ED = 2
 
     def __init__(self,
                  connection: PTHeadIPConnection,
@@ -274,7 +275,7 @@ class PTHead():
             print(f'reply from command "{command}": "{reply}"')
 
         # expect error messages if command is a reset axis command
-        expect_limit_err = command.upper() in ['RP', 'RT']
+        expect_limit_err = command.upper() in {'RP', 'RT'}
 
         try:
             self._check_cmd_reply(reply, expect_limit_err)
@@ -312,13 +313,15 @@ class PTHead():
         Returns:
             float: timeout value in seconds
         """
-        if command[0:2] == 'TP':
+        if command.startswith('TP'):
             return self.TIMEOUT_TILT
-        if command[0:2] == 'PP':
+        if command == 'ED':
+            return self.TIMEOUT_ED
+        if command.startswith('PP'):
             return self.TIMEOUT_PAN
         if command == 'A':
             return self.TIMEOUT_PAN
-        if command[0:2] in ['RT', 'RP']:
+        if command[:2] in ['RT', 'RP']:
             return self.TIMEOUT_RST_AXIS
         return self.TIMEOUT_DEFAULT
 
@@ -462,8 +465,7 @@ class PTHead():
             err.append(err_msg.format('elevation', target_pos[1], cur_pos[1]))
 
         if err:
-            msg = 'error during move: '
-            msg += ', '.join(err)
+            msg = 'error during move: ' + ', '.join(err)
             raise PTHeadMoveError(msg)
 
     def current_pos(self) -> List:
