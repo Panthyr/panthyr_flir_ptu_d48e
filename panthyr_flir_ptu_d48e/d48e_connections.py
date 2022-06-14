@@ -40,7 +40,7 @@ class PTHeadIPConnection(PTHeadConnection):
     Provides functions to connect to the pan/tilt head over Ethernet
     """
 
-    PTU_IP = '192.168.100.190'
+    PTU_IP = '192.168.100.105'
     PTU_PORT = 4000
     TIMEOUT_SOCKET = 5
 
