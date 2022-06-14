@@ -62,10 +62,10 @@ class PTHeadIPConnection(PTHeadConnection):
         """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
-        except sckt.timeout:
+        except sckt.timeout as e:
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
             self._log.error(msg)
-            raise PTHeadReplyTimeout
+            raise PTHeadReplyTimeout from e
         else:
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
