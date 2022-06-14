@@ -389,7 +389,8 @@ class PTHead():
         """
         dict_rtn = {}
 
-        dict_rtn['voltage'], *temps = self._send_query('O').split(',')
+        voltage, *temps = self._send_query('O').split(',')
+        dict_rtn['voltage'] = float(voltage)
 
         def _f_to_c(f: str) -> float:
             c = (float(f) - 32) / 1.8
