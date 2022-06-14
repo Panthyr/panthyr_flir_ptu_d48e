@@ -209,7 +209,7 @@ class PTHead():
         else:
             init_cmds.extend(['TNU-27999', 'TXU9333', 'PNU-27067', 'PXU27067', 'LU'])
 
-        self._log.debug(f'Commands generated for init: {init_cmds}')
+        # self._log.debug(f'Commands generated for init: {init_cmds}')
 
         return init_cmds
 
