@@ -13,23 +13,24 @@ __all__ = [
     'PTHeadInvalidTargetPosition', 'PTHeadMoveError'
 ]
 
+class PtHeadExcepetion(Exception)
 
-class PTHeadReplyTimeout(Exception):
+class PTHeadReplyTimeout(PTHeadException):
     """Timeout waiting for reply from head"""
     pass
 
 
-class PTHeadNotInitialized(Exception):
+class PTHeadNotInitialized(PTHeadException):
     """Trying to perform an action, but head is not yet initialized"""
     pass
 
 
-class PTHeadIncorrectReply(Exception):
+class PTHeadIncorrectReply(PTHeadException):
     """Head returned an incorrect reply to a command or query"""
     pass
 
 
-class PTHeadInvalidTargetPosition(Exception):
+class PTHeadInvalidTargetPosition(PTHeadException):
     """
     Requested target position is not valid.
 
@@ -38,6 +39,6 @@ class PTHeadInvalidTargetPosition(Exception):
     pass
 
 
-class PTHeadMoveError(Exception):
+class PTHeadMoveError(PTHeadException):
     """Head is not where it should be after a move action."""
     pass
