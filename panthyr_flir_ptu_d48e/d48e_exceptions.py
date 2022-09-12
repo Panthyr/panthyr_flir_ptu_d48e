@@ -13,7 +13,10 @@ __all__ = [
     'PTHeadInvalidTargetPosition', 'PTHeadMoveError'
 ]
 
-class PtHeadExcepetion(Exception)
+
+class PTHeadException(Exception):
+    pass
+
 
 class PTHeadReplyTimeout(PTHeadException):
     """Timeout waiting for reply from head"""
