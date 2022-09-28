@@ -177,4 +177,5 @@ class PTHeadIPConnection(PTHeadConnection):
         while len(rx_waiting) > 0:
             rx_buffer_readout += self.socket.recv(1).decode()
             rx_waiting, _, _ = select.select([self.socket], [], [], 0)
+            time.sleep(0.01)
         return rx_buffer_readout
