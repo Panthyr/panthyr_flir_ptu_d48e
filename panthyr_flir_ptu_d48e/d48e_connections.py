@@ -107,6 +107,7 @@ class PTHeadIPConnection(PTHeadConnection):
                 self._log.error(msg)
                 raise
             else:
+                self._log.warning(f'Retrying head command {command}, got {e}.')
                 self.send_and_get(command=command, timeout=timeout, is_retry=True)
 
         return reply
