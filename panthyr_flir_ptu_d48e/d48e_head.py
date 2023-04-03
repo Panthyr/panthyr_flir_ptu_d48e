@@ -76,7 +76,7 @@ class PTHead():
     TIMEOUT_TILT = 25
     TIMEOUT_PAN = 40
     TIMEOUT_RST_AXIS = 15
-    TIMEOUT_QUERY = 0.5
+    TIMEOUT_QUERY = 1
     TIMEOUT_ED = 2
 
     def __init__(self,
