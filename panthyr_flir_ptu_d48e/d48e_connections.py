@@ -70,7 +70,7 @@ class PTHeadIPConnection(PTHeadConnection):
                                    1)  # disable Nagle's algorithm
             self._empty_rcv_socket()
 
-    def send_and_get(self, command: str, timeout: float) -> str:
+    def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
         """Send command and check reply.
 
         The command is sent over the socket connection.
@@ -78,12 +78,15 @@ class PTHeadIPConnection(PTHeadConnection):
         The reply is then checked. Axis errors are ignored if command is an axis reset command.
         Expected reply is '*'
 
+        If the reply is not correct, a second attempt is made by calling this function again, with 
+            is_retry = True.
+
         Args:
             command (str): Command to be sent (without <CR>)
-            timeout (Union[float, None], optional): override default timeout constants,
+            timeout (float): override default timeout constants,
                 for example for move operations.
                 In seconds.
-                Defaults to None.
+            is_retry (bool): set to True if this is the second attempt to send command                 
 
         Raises:
             PTHeadReplyTimeout: if head does not respond with full line within timeout
@@ -99,9 +102,12 @@ class PTHeadIPConnection(PTHeadConnection):
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
-            msg = str(e) + f' for command "{command}"'
-            self._log.error(msg)
-            raise
+            if is_retry:
+                msg: str = f'{str(e)} for command "{command}"'
+                self._log.error(msg)
+                raise
+            else:
+                self.send_and_get(command=command, timeout=timeout, is_retry=True)
 
         return reply
 
