@@ -20,7 +20,7 @@ project = 'Panthyr FLIR PTU-D48e'
 author = 'Dieter Vansteenwegen'
 
 # The full version, including alpha/beta/rc tags
-release = '0.2.0'
+release = 'v1.0.0'
 
 # -- General configuration ---------------------------------------------------
 
