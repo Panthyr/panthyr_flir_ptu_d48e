@@ -41,7 +41,7 @@ class PTHeadIPConnection(PTHeadConnection):
 
     PTU_IP = '192.168.100.105'
     PTU_PORT = 4000
-    TIMEOUT_SOCKET = 5
+    TIMEOUT_SOCKET = 10
 
     def __init__(self, ip: str = PTU_IP, port: int = PTU_PORT, timeout: int = TIMEOUT_SOCKET):
         """__init__ for class
@@ -63,6 +63,7 @@ class PTHeadIPConnection(PTHeadConnection):
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
         except (sckt.timeout, OSError) as e:
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
+            self.log.error(f'{msg}')
             raise PTHeadReplyTimeout(msg) from e
         else:
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
