@@ -3,6 +3,8 @@
 # Authors: Dieter Vansteenwegen
 # Institution: VLIZ (Vlaams Instituut voor de Zee)
 
+import contextlib
+
 __author__ = 'Dieter Vansteenwegen'
 __email__ = 'dieter.vansteenwegen@vliz.be'
 __project__ = 'Panthyr'
@@ -23,10 +25,7 @@ def initialize_logger() -> logging.Logger:
     Returns:
         logging.Logger: logger instance
     """
-    if __name__ == '__main__':
-        return logging.getLogger('{}'.format(__name__))
-    else:
-        return logging.getLogger('__main__.{}'.format(__name__))
+    return logging.getLogger(__name__)
 
 
 class PTHeadConnection():
@@ -55,7 +54,7 @@ class PTHeadIPConnection(PTHeadConnection):
         self.ip = ip
         self.port = port
         self.timeout = timeout
-        self._log = initialize_logger()
+        self.log = initialize_logger()
         self.connect()
 
     def connect(self) -> None:
@@ -69,6 +68,7 @@ class PTHeadIPConnection(PTHeadConnection):
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
             self._empty_rcv_socket()
+            self.log.debug('Socket set up.')
 
     def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
         """Send command and check reply.
@@ -97,21 +97,28 @@ class PTHeadIPConnection(PTHeadConnection):
         """
 
         self._empty_rcv_socket()
-        self._log.debug(f'-->>> Sending [{command}]')
+        self.log.debug(f'-->>> Sending [{command}]')
         self._send_raw(command)
 
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
-            if is_retry:
-                msg: str = f' Retry failed: {str(e)} for command "{command}"'
-                self._log.error(msg)
-                raise
-            else:
-                self._log.warning(f'Retrying head command {command}, got {e}.')
-                self.send_and_get(command=command, timeout=timeout, is_retry=True)
+            if not is_retry:
+                return (self._reset_socket_and_retry(command, e, timeout))
+            msg: str = f' Retry failed: {str(e)} for command "{command}"'
+            self.log.error(msg)
+            raise
         else:
             return reply
+
+    def _reset_socket_and_retry(self, command, e, timeout):
+        self.log.warning(f'Resetting socket and retrying head command {command}, got {e}.')
+        self.log.debug(
+            f'Socket before closing: {self.socket}, blocking: {self.socket.getblocking()}')
+        self.socket.close()
+        self.socket = None
+        self.connect()
+        return (self.send_and_get(command=command, timeout=timeout, is_retry=True))
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
@@ -165,12 +172,9 @@ class PTHeadIPConnection(PTHeadConnection):
             rx += self._rx_from_socket()
 
             time.sleep(0.01)
-            try:
+            with contextlib.suppress(IndexError):
                 if rx[0] == '\n' and rx[-2:] == '\r\n':
                     return rx[1:-2]
-            except IndexError:
-                # not enough data yet
-                pass
             timeout -= 0.01
         raise PTHeadReplyTimeout(f'Received [{repr(rx)}] after {orig_timeout}s')
 
