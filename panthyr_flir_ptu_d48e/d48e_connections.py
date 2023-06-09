@@ -97,20 +97,21 @@ class PTHeadIPConnection(PTHeadConnection):
         """
 
         self._empty_rcv_socket()
+        self._log.debug(f'-->>> Sending [{command}]')
         self._send_raw(command)
 
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
             if is_retry:
-                msg: str = f'{str(e)} for command "{command}"'
+                msg: str = f' Retry failed: {str(e)} for command "{command}"'
                 self._log.error(msg)
                 raise
             else:
                 self._log.warning(f'Retrying head command {command}, got {e}.')
                 self.send_and_get(command=command, timeout=timeout, is_retry=True)
-
-        return reply
+        else:
+            return reply
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""

@@ -230,8 +230,8 @@ class PTHead():
 
         try:
             return self._conn.send_and_get(command, timeout)
-        except PTHeadReplyTimeout:
-            self._log.exception(f'timeout (>{timeout}) for command {command}')
+        except PTHeadReplyTimeout as e:
+            self._log.error(f'Timeout (>{timeout}) for command {command}. ')
             raise
 
     def send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
