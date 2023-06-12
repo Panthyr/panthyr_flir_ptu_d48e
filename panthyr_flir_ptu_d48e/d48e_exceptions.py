@@ -23,6 +23,11 @@ class PTHeadReplyTimeout(PTHeadException):
     pass
 
 
+class PTHeadConnectionError(PTHeadException):
+    """Could not connect to head"""
+    pass
+
+
 class PTHeadNotInitialized(PTHeadException):
     """Trying to perform an action, but head is not yet initialized"""
     pass

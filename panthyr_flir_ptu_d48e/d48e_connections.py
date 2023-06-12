@@ -14,7 +14,7 @@ import logging
 import time
 import select
 import socket as sckt
-from .d48e_exceptions import PTHeadReplyTimeout
+from .d48e_exceptions import PTHeadReplyTimeout, PTHeadConnectionError
 
 
 def initialize_logger() -> logging.Logger:
@@ -64,12 +64,26 @@ class PTHeadIPConnection(PTHeadConnection):
         except (sckt.timeout, OSError) as e:
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
             self.log.error(f'{msg}')
-            raise PTHeadReplyTimeout(msg) from e
+            raise PTHeadConnectionError(msg) from e
         else:
-            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
-                                   1)  # disable Nagle's algorithm
+            self._set_socket_options()
             self._empty_rcv_socket()
             self.log.debug('Socket set up.')
+
+    def _set_socket_options(self) -> None:
+        """Perform additional configuration on the socket
+
+        Disables Nagle's Algorithm (bundle smaller chunks of data for delivery into one big packet).
+        Enables keepalive packets.
+        Starts sending keepalive packets after 1 idle second.
+        Send a packet every 3 seconds.
+        """
+        if self.socket:
+            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
+                                   1)  # disable Nagle's algorithm
+            self.socket.setsockopt(sckt.SOL_SOCKET, sckt.SO_KEEPALIVE, 1)
+            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPIDLE, 1)
+            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPINTVL, 3)
 
     def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
         """Send command and check reply.
@@ -113,7 +127,7 @@ class PTHeadIPConnection(PTHeadConnection):
             return reply
 
     def _reset_socket_and_retry(self, command, e, timeout):
-        self.log.warning(f'Resetting socket and retrying head command {command}, got {e}.')
+        self.log.warning(f'Resetting socket and retrying head command {command}, {e}.')
         self.log.debug(
             f'Socket before closing: {self.socket}, blocking: {self.socket.getblocking()}')
         self.socket.close()
