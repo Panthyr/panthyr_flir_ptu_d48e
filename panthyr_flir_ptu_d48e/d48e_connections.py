@@ -165,9 +165,10 @@ class PTHeadIPConnection(PTHeadConnection):
                 raise PTHeadConnectionError(
                     f'Could not send {cmd_bytes[bytes_sent:]!r}, connection closed.')
             bytes_sent += sent
-            self.log.info(
-                f'Not everything was sent in one operation (remaining: {cmd_bytes[bytes_sent:]!r})'
-            )
+            if bytes_sent < msg_len:
+                self.log.info(
+                    f'Not everything was sent in one operation ({msg_len - bytes_sent} bytes '
+                    f'remaining: {cmd_bytes[bytes_sent:]!r})')
 
         # if self.socket.send((command + '\r').encode()) < 1:
         #     self.log.warning(f'Sending {command} returned "0", indicating a closed channel.')
