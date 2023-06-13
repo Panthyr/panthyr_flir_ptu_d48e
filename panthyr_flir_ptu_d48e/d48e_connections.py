@@ -155,8 +155,19 @@ class PTHeadIPConnection(PTHeadConnection):
         Args:
             command (str): command to be sent
         """
-        if self.socket.send((command + '\r').encode()) < 1:
-            self.log.warning(f'Sending {command} returned "0", indicating a closed channel.')
+        cmd_bytes = f'{command}\r'.encode()
+        msg_len = len(cmd_bytes)
+
+        bytes_sent = 0
+        while bytes_sent < msg_len:
+            sent = self.socket.send(cmd_bytes[bytes_sent:])
+            if sent == 0:
+                raise PTHeadConnectionError(
+                    f'Could not send {cmd_bytes[bytes_sent:]}, connection closed.')
+            bytes_sent += sent
+
+        # if self.socket.send((command + '\r').encode()) < 1:
+        #     self.log.warning(f'Sending {command} returned "0", indicating a closed channel.')
 
     def _get_reply(self, timeout: float) -> str:
         """Get raw reply within timeout.
