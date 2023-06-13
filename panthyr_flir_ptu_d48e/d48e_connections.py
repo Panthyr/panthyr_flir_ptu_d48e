@@ -143,8 +143,8 @@ class PTHeadIPConnection(PTHeadConnection):
                 return
             if type(read) == bytes:
                 read = read.decode()
-            self.log.warning(f'While emptying socket, {read} was received.')
-            self.socket.recv(1)
+            read_data = self.socket.recv(1).decode()
+            self.log.warning(f'While emptying socket, {read_data} was received.')
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
