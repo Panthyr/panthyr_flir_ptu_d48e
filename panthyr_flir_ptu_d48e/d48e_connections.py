@@ -61,10 +61,10 @@ class PTHeadIPConnection(PTHeadConnection):
         """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
-        except (sckt.timeout, OSError) as e:
+        except (sckt.timeout, OSError):
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
             self.log.error(f'{msg}')
-            raise PTHeadConnectionError(msg) from e
+            raise PTHeadConnectionError(msg)
         else:
             self._set_socket_options()
             self._empty_rcv_socket()
@@ -76,14 +76,14 @@ class PTHeadIPConnection(PTHeadConnection):
         Disables Nagle's Algorithm (bundle smaller chunks of data for delivery into one big packet).
         Enables keepalive packets.
         Starts sending keepalive packets after 1 idle second.
-        Send a packet every 3 seconds.
+        Send a packet every 1 second.
         """
         if self.socket:
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
             self.socket.setsockopt(sckt.SOL_SOCKET, sckt.SO_KEEPALIVE, 1)
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPIDLE, 1)
-            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPINTVL, 3)
+            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPINTVL, 1)
 
     def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
         """Send command and check reply.
