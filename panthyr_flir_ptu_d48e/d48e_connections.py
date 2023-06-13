@@ -136,15 +136,16 @@ class PTHeadIPConnection(PTHeadConnection):
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
+        read_data = ''
         while True:
             time.sleep(0.01)
             read, __, __ = select.select([self.socket], [], [], 0)
             if len(read) == 0:
-                return
-            if type(read) == bytes:
-                read = read.decode()
-            read_data = self.socket.recv(1).decode()
-            self.log.warning(f'While emptying socket, {read_data} was received.')
+                break
+            read_data += self.socket.recv(1).decode()
+
+        if read_data:
+            self.log.warning(read_data)
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
