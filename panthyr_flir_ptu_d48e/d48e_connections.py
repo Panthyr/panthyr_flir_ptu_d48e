@@ -57,7 +57,7 @@ class PTHeadIPConnection(PTHeadConnection):
         self.log = initialize_logger()
         self.connect()
 
-    def connect(self) -> None:
+    def connect(self) -> None:  # sourcery skip: raise-from-previous-error
         """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
@@ -131,7 +131,6 @@ class PTHeadIPConnection(PTHeadConnection):
         self.log.debug(
             f'Socket before closing: {self.socket}, blocking: {self.socket.getblocking()}')
         self.socket.close()
-        self.socket = None
         self.connect()
         return (self.send_and_get(command=command, timeout=timeout, is_retry=True))
 
