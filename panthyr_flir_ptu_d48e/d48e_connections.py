@@ -128,8 +128,6 @@ class PTHeadIPConnection(PTHeadConnection):
 
     def _reset_socket_and_retry(self, command, e, timeout):
         self.log.warning(f'Resetting socket and retrying head command {command}, {e}.')
-        self.log.debug(
-            f'Socket before closing: {self.socket}, blocking: {self.socket.getblocking()}')
         self.socket.close()
         self.connect()
         return (self.send_and_get(command=command, timeout=timeout, is_retry=True))
@@ -142,8 +140,8 @@ class PTHeadIPConnection(PTHeadConnection):
             read, __, __ = select.select([self.socket], [], [], 0)
             if len(read) == 0:
                 break
-            read_data += self.socket.recv(1).decode()
-
+            with contextlib.suppress(TimeoutError):
+                read_data += self.socket.recv(1).decode()
         if read_data:
             self.log.warning(read_data)
 
