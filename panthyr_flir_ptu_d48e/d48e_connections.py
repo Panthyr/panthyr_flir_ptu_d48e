@@ -17,6 +17,7 @@ import socket as sckt
 from .d48e_exceptions import PTHeadReplyTimeout, PTHeadConnectionError
 import time
 
+
 def initialize_logger() -> logging.Logger:
     """Set up logger
 
@@ -148,20 +149,19 @@ class PTHeadIPConnection(PTHeadConnection):
         #    self.log.debug(f'after self.socket.recv(1).decode() [{read_data}]')
         #if read:
         while True:
-                
-            read, _, error = select.select([self.socket],[],[self.socket],0)
+
+            read, _, error = select.select([self.socket], [], [self.socket], 0)
             #self.log.debug(f'read: [{read}]')
             if error:
                 self.log.warning(f'Error returned from select for socket: [{error}]')
             if not read:
                 break
             read_data = self.socket.recv(1024).decode()
-            if not len(read_data) > 0:
+            if len(read_data) <= 0:
                 break
-            if not 'PAN-TILT' in read_data:
+            if 'PAN-TILT' not in read_data:
                 self.log.warning(f'Data left in buffer: [{read_data}]')
 
-        
         # if read_data and not '### PAN-TILT CONTROLLER' in read_data:
         #    self.log.warning(read_data)
         #if read_data:
@@ -181,10 +181,13 @@ class PTHeadIPConnection(PTHeadConnection):
 
         bytes_sent = 0
         while bytes_sent < msg_len:
-            _, _, error  = select.select([self.socket],[],[],0.5)
+            _, _, error = select.select([self.socket], [], [], 0.5)
             if error:
                 raise PTHeadConnectionError(f'Error checking socket: [{error}]. {self.socket}')
-            sent = self.socket.send(cmd_bytes[bytes_sent:])
+            try:
+                sent = self.socket.send(cmd_bytes[bytes_sent:])
+            except BrokenPipeError:
+                raise PTHeadConnectionError('Broken pipe error.')
             if sent == 0:
                 raise PTHeadConnectionError(
                     f'Could not send {cmd_bytes[bytes_sent:]!r}, connection closed.')
