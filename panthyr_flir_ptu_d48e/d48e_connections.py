@@ -15,7 +15,7 @@ import time
 import select
 import socket as sckt
 from .d48e_exceptions import PTHeadReplyTimeout, PTHeadConnectionError
-
+import time
 
 def initialize_logger() -> logging.Logger:
     """Set up logger
@@ -63,7 +63,6 @@ class PTHeadIPConnection(PTHeadConnection):
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
         except (sckt.timeout, OSError):
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
-            self.log.error(f'{msg}')
             raise PTHeadConnectionError(msg)
         else:
             self._set_socket_options()
@@ -79,6 +78,8 @@ class PTHeadIPConnection(PTHeadConnection):
         Send a packet every 1 second.
         """
         if self.socket:
+            self.socket.settimeout(3)
+            #self.socket.setblocking(0)
             self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
                                    1)  # disable Nagle's algorithm
             self.socket.setsockopt(sckt.SOL_SOCKET, sckt.SO_KEEPALIVE, 1)
@@ -129,21 +130,42 @@ class PTHeadIPConnection(PTHeadConnection):
     def _reset_socket_and_retry(self, command, e, timeout):
         self.log.warning(f'Resetting socket and retrying head command {command}, {e}.')
         self.socket.close()
+        time.sleep(0.5)
+        self.socket = None
         self.connect()
         return (self.send_and_get(command=command, timeout=timeout, is_retry=True))
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
         read_data = ''
+        #while True:
+        #    time.sleep(0.01)
+        #    read, __, __ = select.select([self.socket], [], [], 0)
+        #    if len(read) == 0:
+        #        break
+        #    self.log.debug('before self.socket.recv(1).decode()')
+        #    read_data += self.socket.recv(1).decode()
+        #    self.log.debug(f'after self.socket.recv(1).decode() [{read_data}]')
+        #if read:
         while True:
-            time.sleep(0.01)
-            read, __, __ = select.select([self.socket], [], [], 0)
-            if len(read) == 0:
+                
+            read, _, error = select.select([self.socket],[],[self.socket],0)
+            #self.log.debug(f'read: [{read}]')
+            if error:
+                self.log.warning(f'Error returned from select for socket: [{error}]')
+            if not read:
                 break
-            with contextlib.suppress(TimeoutError):
-                read_data += self.socket.recv(1).decode()
-        if read_data:
-            self.log.warning(read_data)
+            read_data = self.socket.recv(1024).decode()
+            if not len(read_data) > 0:
+                break
+            if not 'PAN-TILT' in read_data:
+                self.log.warning(f'Data left in buffer: [{read_data}]')
+
+        
+        # if read_data and not '### PAN-TILT CONTROLLER' in read_data:
+        #    self.log.warning(read_data)
+        #if read_data:
+        #    self.log.debug(f'Still in RX buffer: [{read_data}]')
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
@@ -153,11 +175,15 @@ class PTHeadIPConnection(PTHeadConnection):
         Args:
             command (str): command to be sent
         """
+
         cmd_bytes = f'{command}\r'.encode()
         msg_len = len(cmd_bytes)
 
         bytes_sent = 0
         while bytes_sent < msg_len:
+            _, _, error  = select.select([self.socket],[],[],0.5)
+            if error:
+                raise PTHeadConnectionError(f'Error checking socket: [{error}]. {self.socket}')
             sent = self.socket.send(cmd_bytes[bytes_sent:])
             if sent == 0:
                 raise PTHeadConnectionError(
