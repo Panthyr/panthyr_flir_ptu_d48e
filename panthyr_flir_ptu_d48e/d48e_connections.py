@@ -114,7 +114,6 @@ class PTHeadIPConnection(PTHeadConnection):
         """
 
         self._empty_rcv_socket()
-        self.log.debug(f'-->>> Sending [{command}]')
         self._send_raw(command)
 
         try:
@@ -139,15 +138,7 @@ class PTHeadIPConnection(PTHeadConnection):
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
         read_data = ''
-        #while True:
-        #    time.sleep(0.01)
-        #    read, __, __ = select.select([self.socket], [], [], 0)
-        #    if len(read) == 0:
-        #        break
-        #    self.log.debug('before self.socket.recv(1).decode()')
-        #    read_data += self.socket.recv(1).decode()
-        #    self.log.debug(f'after self.socket.recv(1).decode() [{read_data}]')
-        #if read:
+
         while True:
 
             read, _, error = select.select([self.socket], [], [self.socket], 0)
@@ -161,11 +152,6 @@ class PTHeadIPConnection(PTHeadConnection):
                 break
             if 'PAN-TILT' not in read_data:
                 self.log.warning(f'Data left in buffer: [{read_data}]')
-
-        # if read_data and not '### PAN-TILT CONTROLLER' in read_data:
-        #    self.log.warning(read_data)
-        #if read_data:
-        #    self.log.debug(f'Still in RX buffer: [{read_data}]')
 
     def _send_raw(self, command: str) -> None:
         """Send command over socket
@@ -196,9 +182,6 @@ class PTHeadIPConnection(PTHeadConnection):
                 self.log.info(
                     f'Not everything was sent in one operation ({msg_len - bytes_sent} bytes '
                     f'remaining: {cmd_bytes[bytes_sent:]!r})')
-
-        # if self.socket.send((command + '\r').encode()) < 1:
-        #     self.log.warning(f'Sending {command} returned "0", indicating a closed channel.')
 
     def _get_reply(self, timeout: float) -> str:
         """Get raw reply within timeout.
