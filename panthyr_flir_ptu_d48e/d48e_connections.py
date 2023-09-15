@@ -119,11 +119,12 @@ class PTHeadIPConnection(PTHeadConnection):
         try:
             reply = self._get_reply(timeout)
         except PTHeadReplyTimeout as e:
-            if not is_retry:
+            if is_retry:
+                msg: str = f' Retry failed: {str(e)} for command "{command}"'
+                self.log.error(msg)
+                raise
+            else:
                 return (self._reset_socket_and_retry(command, e, timeout))
-            msg: str = f' Retry failed: {str(e)} for command "{command}"'
-            self.log.error(msg)
-            raise
         else:
             return reply
 
