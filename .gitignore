@@ -155,3 +155,6 @@ workspace.code-workspace
 
 ### Sphinx
 docs/build/
+ptu_d48.srctrlprj
+ptu_d48.srctrlbm
+ptu_d48.srctrldb
