@@ -1,0 +1,122 @@
+# See https://peps.python.org/pep-0621/
+
+[project]
+name = 'p_flir_ptu_d48e'
+
+readme = 'README.md'
+version = 'v1.1.0'
+description = '.'
+authors = [{ email = 'dieterv@vliz.be' }, { name = 'Dieter Vansteenwegen' }]
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Programming Language :: Python',
+]
+requires-python = ">=3.7.3"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[project.urls]
+Homepage = 'https://waterhypernet.org/equipment/'
+Repository = 'https://github.com/Panthyr/panthyr_flir_ptu_d48e.git'
+Changelog = 'https://github.com/Panthyr/panthyr_flir_ptu_d48e/blob/master/CHANGELOG.md'
+
+
+[build-system]
+requires = ['setuptools', 'setuptools-scm']
+# build-backend = 'setuptools.build.meta'     # Generates 'ModuleNotFoundError: No module named 'setuptools.build'
+
+[tool.setuptools.packages.find]
+where = ['.']                       # list of folders that contain the packages (['.'] by default)
+include = ['panthyr_flir_ptu_d48e']
+
+[project.scripts]
+# worker = "p_core.worker.worker:main"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# tests = ["B201", "B301"]
+# skips = ["B101", "B601"]
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+    # Pycodestyle errors
+    "E",
+    # Pycodestyle warnings
+    "W",
+    # Pyflakes
+    "F",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # McCabe complex structure
+    "C901",
+    # PEP8 Naming
+    "N",
+    # Flake8-Bandit
+    "S",
+    # Flake8-builtins
+    "A",
+    # Flake8-commas
+    "COM",
+    # Flake8-datetimez
+    "DTZ",
+    # Flake8-errmsg
+    "EM",
+    # Flake8-use-pathlib
+    "PTH",
+    # tryceratops
+    "TRY",
+]
+
+ignore = [
+    # Use logging.exception instead of logging.error
+    "TRY400",
+    # Raising and catching exceptions in the same block may lead to confusion
+    "TRY301",
+
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+skip-magic-trailing-comma = false
+exclude = ["*.pyi"]
