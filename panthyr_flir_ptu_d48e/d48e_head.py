@@ -10,9 +10,16 @@ __project_link__ = 'https://waterhypernet.org/equipment/'
 
 import logging
 import time
+from typing import Dict, List, Union
+
 from .d48e_connections import PTHeadIPConnection
-from typing import Union, List, Dict
-from .d48e_exceptions import PTHeadIncorrectReply, PTHeadNotInitialized, PTHeadReplyTimeout, PTHeadInvalidTargetPosition, PTHeadMoveError
+from .d48e_exceptions import (
+    PTHeadIncorrectReply,
+    PTHeadInvalidTargetPosition,
+    PTHeadMoveError,
+    PTHeadNotInitialized,
+    PTHeadReplyTimeout,
+)
 
 
 def initialize_logger() -> logging.Logger:
@@ -26,7 +33,7 @@ def initialize_logger() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-class PTHead():
+class PTHead:
     """
     Main control for the FLIR PTU-D48 pan/tilt head.
 
@@ -76,10 +83,12 @@ class PTHead():
     TIMEOUT_QUERY = 1
     TIMEOUT_ED = 2
 
-    def __init__(self,
-                 connection: PTHeadIPConnection,
-                 do_reset: bool = True,
-                 has_slipring: bool = True) -> None:
+    def __init__(
+        self,
+        connection: PTHeadIPConnection,
+        do_reset: bool = True,
+        has_slipring: bool = True,
+    ) -> None:
         """__init__ for class
 
         Args:
@@ -130,7 +139,7 @@ class PTHead():
         """Get the resolution of steps.
 
         Results are in arc degrees per position.
-        PR and TR queries return the resolution in arc degrees per position. 
+        PR and TR queries return the resolution in arc degrees per position.
         """
         self.resolution_pan = float(self._send_query('PR'))
         self.resolution_tilt = float(self._send_query('TR'))
@@ -151,7 +160,7 @@ class PTHead():
         Commands used during initialization:
         [General config]
         ED = disable host command echo
-        RD = disable _do_reset on boot
+        RD = disable reset on boot
         FT = terse ASCII feedback mode
         CEC = enable encoder correction mode
 
@@ -160,7 +169,7 @@ class PTHead():
         PSxxx = pan desired speed
         PHL = pan hold power mode: low
         PML = pan move power mode: low
-        RPSxxx = pan _do_reset speed
+        RPSxxx = pan reset speed
         PA1500 = pan acceleration
 
         [Tilt axis]
@@ -168,14 +177,15 @@ class PTHead():
         TSxxx = desired tilt speed
         THL = tilt hold power mode: low
         TML = tilt move power mode: low
-        RTSxxx = _do_reset tilt speed
+        RTSxxx = reset tilt speed
         TA1500 = tilt acceleration
 
-        [Stepping and axis _do_reset]
-        WTA = tilt auto step  (!!! needs axis _do_reset after this command)
-        WPA = pan auto step  (!!! needs axis _do_reset after this command)
-        RT = _do_reset tilt axis
-        RP =  _do_reset pan axis
+        [Stepping and axis reset]
+        WTA = tilt auto step  (!!! needs axis reset after this command)
+        WPA = pan auto step  (!!! needs axis reset after this command)
+        RT = reset tilt axis
+        RP =  reset pan axis
+        RS =  reset both simultaneous axis
 
         [Limits or continuous rotation]
         PNU-27067 = pan user minimum limit -174 degrees
@@ -190,15 +200,32 @@ class PTHead():
         """
 
         init_cmds = [
-            'FT', 'PHL', 'THR', 'PML', 'TMH', 'CEC', 'PA2000', 'TA2000', f'PU{self.PAN_MAX_SPEED}',
-            f'TU{self.TILT_MAX_SPEED}', f'PS{self.PAN_CONSTANT_SPEED}',
-            f'TS{self.TILT_CONSTANT_SPEED}', f'RPS{self.PAN_RESET_SPEED}',
-            f'RTS{self.TILT_RESET_SPEED}'
+            'FT',
+            'PHL',
+            'THR',
+            'PML',
+            'TMH',
+            'CEC',
+            'PA3000',
+            'TA3000',
+            f'PU{self.PAN_MAX_SPEED}',
+            f'TU{self.TILT_MAX_SPEED}',
+            f'PS{self.PAN_CONSTANT_SPEED}',
+            f'TS{self.TILT_CONSTANT_SPEED}',
+            f'RPS{self.PAN_RESET_SPEED}',
+            f'RTS{self.TILT_RESET_SPEED}',
         ]
 
         if self._do_reset:
             # axis reset and calibration cmds
-            init_cmds.extend(['WTA', 'WPA', 'RT', 'RP', 'RD'])
+            init_cmds.extend(
+                [
+                    'WTA',
+                    'WPA',
+                    'RS',
+                    'RD',
+                ],
+            )
 
         # Add commands for either user limits or continuous rotation
         # These should be executed last
@@ -227,7 +254,7 @@ class PTHead():
 
         try:
             return self._conn.send_and_get(command, timeout)
-        except PTHeadReplyTimeout as e:
+        except PTHeadReplyTimeout:
             self._log.error(f'Timeout (>{timeout}) for command {command}. ')
             raise
 
@@ -245,8 +272,8 @@ class PTHead():
             None
         """
         if not self.initialized:
-            raise PTHeadNotInitialized(
-                'Head is not yet initialized, call initialize function first.')
+            msg = 'Head is not yet initialized, call initialize function first.'
+            raise PTHeadNotInitialized(msg)
         return self._send_cmd(command, timeout)
 
     def _send_cmd(self, command: str, timeout: Union[float, None] = None) -> None:
@@ -259,9 +286,9 @@ class PTHead():
 
         Args:
             command (str): command to be sent
-            timeout (Union[float, None], optional): timeout. 
-                If none is given, the timeout constants are used, 
-                    depending on type of command. 
+            timeout (Union[float, None], optional): timeout.
+                If none is given, the timeout constants are used,
+                    depending on type of command.
                 Defaults to None.
         """
         if not timeout:
@@ -272,7 +299,11 @@ class PTHead():
             print(f'reply from command "{command}": "{reply}"')
 
         # expect error messages if command is a reset axis command
-        expect_limit_err = command.upper() in {'RP', 'RT'}
+        expect_limit_err = command.upper() in {
+            'RP',
+            'RT',
+            'RS',
+        }
 
         try:
             self._check_cmd_reply(reply, expect_limit_err)
@@ -283,7 +314,7 @@ class PTHead():
     def _check_cmd_reply(self, reply: str, expect_limit_err: bool):
         """Check reply, raising error if incorrect
 
-        If axis errors are to be expected, first strips '!P' and '!T'. 
+        If axis errors are to be expected, first strips '!P' and '!T'.
         Reply should only consist of a '*'.
 
         Args:
@@ -297,6 +328,7 @@ class PTHead():
         if expect_limit_err:
             # get rid of '!P' and '!T'
             import re
+
             reply = re.sub('!T|!P', '', reply)
         if reply != '*':
             raise PTHeadIncorrectReply
@@ -318,7 +350,11 @@ class PTHead():
             return self.TIMEOUT_PAN
         if command == 'A':
             return self.TIMEOUT_PAN
-        if command[:2] in ['RT', 'RP']:
+        if command[:2] in [
+            'RT',
+            'RP',
+            'RS',
+        ]:
             return self.TIMEOUT_RST_AXIS
         return self.TIMEOUT_DEFAULT
 
@@ -335,8 +371,8 @@ class PTHead():
             str: stripped reply from head
         """
         if not self.initialized:
-            raise PTHeadNotInitialized(
-                'Head is not yet initialized, call initialize function first.')
+            msg = 'Head is not yet initialized, call initialize function first.'
+            raise PTHeadNotInitialized(msg)
         return self._send_query(query)
 
     def _send_query(self, query: str) -> str:
@@ -422,9 +458,11 @@ class PTHead():
         """
         raise NotImplementedError
 
-    def move_pos_deg(self,
-                     heading: Union[None, float] = None,
-                     elevation: Union[None, float] = None) -> None:
+    def move_pos_deg(
+        self,
+        heading: Union[None, float] = None,
+        elevation: Union[None, float] = None,
+    ) -> None:
         """Move the head to a specific heading and/or elevation.
 
         Setting either heading or elevation to None will not move that axis.
@@ -487,15 +525,15 @@ class PTHead():
         pos_steps = self.current_pos()
         print(pos_steps)
         rtn: List = [None, None]
-        import pdb
-        pdb.set_trace()
         rtn[0] = round((pos_steps[0] * self.resolution_pan) / 3600, 1)
         rtn[1] = round((pos_steps[1] * self.resolution_tilt) / 3600, 1)
         return rtn
 
-    def _convert_pos_to_steps(self,
-                              heading: Union[None, float] = None,
-                              elevation: Union[None, float] = None) -> List:
+    def _convert_pos_to_steps(
+        self,
+        heading: Union[None, float] = None,
+        elevation: Union[None, float] = None,
+    ) -> List:
         """Check angular heading/elevation and convert to steps.
 
         Args:
@@ -519,7 +557,7 @@ class PTHead():
     def _generate_move_cmds(self, target_pos: List) -> List[str]:
         """Generate a list of commands to move to the target position and wait.
 
-        Generates commands for pan/tilt movement (if target position is not None), 
+        Generates commands for pan/tilt movement (if target position is not None),
                 then adds 'A' to wait after the last axis command.
 
         Args:
@@ -565,8 +603,8 @@ class PTHead():
 
         # check if value is reasonable
         if not (0 <= heading <= 360):
-            raise PTHeadInvalidTargetPosition(
-                f'{heading} is an invalid heading (should be  0 <= x < 360)')
+            msg = f'{heading} is an invalid heading (should be  0 <= x < 360)'
+            raise PTHeadInvalidTargetPosition(msg)
 
         # convert to +/- 180 degrees
         if heading > 180:
@@ -598,8 +636,8 @@ class PTHead():
         """
         # check if value is reasonable
         if not (-90 <= elevation <= 30):
-            raise PTHeadInvalidTargetPosition(
-                f'{elevation} is an invalid elevation (should be  -90 <= x < 30)')
+            msg = f'{elevation} is an invalid elevation (should be  -90 <= x < 30)'
+            raise PTHeadInvalidTargetPosition(msg)
 
         # calculate steps (resolution is in arcdegrees per step)
         steps = int(elevation * 3600 / self.resolution_tilt)
