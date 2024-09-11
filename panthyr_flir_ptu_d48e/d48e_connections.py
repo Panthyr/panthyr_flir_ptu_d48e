@@ -3,19 +3,19 @@
 # Authors: Dieter Vansteenwegen
 # Institution: VLIZ (Vlaams Instituut voor de Zee)
 
-import contextlib
 
 __author__ = 'Dieter Vansteenwegen'
 __email__ = 'dieter.vansteenwegen@vliz.be'
 __project__ = 'Panthyr'
 __project_link__ = 'https://waterhypernet.org/equipment/'
 
+import contextlib
 import logging
-import time
 import select
 import socket as sckt
-from .d48e_exceptions import PTHeadReplyTimeout, PTHeadConnectionError
 import time
+
+from .d48e_exceptions import PTHeadConnectionError, PTHeadReplyTimeout
 
 
 def initialize_logger() -> logging.Logger:
@@ -29,8 +29,9 @@ def initialize_logger() -> logging.Logger:
     return logging.getLogger(__name__)
 
 
-class PTHeadConnection():
+class PTHeadConnection:
     """Base class for connection to the head."""
+
     pass
 
 
@@ -58,13 +59,13 @@ class PTHeadIPConnection(PTHeadConnection):
         self.log = initialize_logger()
         self.connect()
 
-    def connect(self) -> None:  # sourcery skip: raise-from-previous-error
+    def connect(self) -> None:
         """Set up socket connection."""
         try:
             self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
         except (sckt.timeout, OSError):
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
-            raise PTHeadConnectionError(msg)
+            raise PTHeadConnectionError(msg) from None
         else:
             self._set_socket_options()
             self._empty_rcv_socket()
@@ -73,19 +74,36 @@ class PTHeadIPConnection(PTHeadConnection):
     def _set_socket_options(self) -> None:
         """Perform additional configuration on the socket
 
-        Disables Nagle's Algorithm (bundle smaller chunks of data for delivery into one big packet).
+        Enable Nagle's Algorithm (bundle smaller chunks of data for delivery into one big packet).
+        Nagle should be disabled according to manual, but experiencing much less network stack hangs
+            on the head if enabled...
         Enables keepalive packets.
-        Starts sending keepalive packets after 1 idle second.
-        Send a packet every 1 second.
+        Starts sending keepalive packets after 10 idle seconds.
+        Send a packet every 10 seconds.
         """
         if self.socket:
             self.socket.settimeout(3)
-            #self.socket.setblocking(0)
-            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_NODELAY,
-                                   1)  # disable Nagle's algorithm
-            self.socket.setsockopt(sckt.SOL_SOCKET, sckt.SO_KEEPALIVE, 1)
-            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPIDLE, 1)
-            self.socket.setsockopt(sckt.IPPROTO_TCP, sckt.TCP_KEEPINTVL, 1)
+            # self.socket.setblocking(0)
+            self.socket.setsockopt(
+                sckt.IPPROTO_TCP,
+                sckt.TCP_NODELAY,
+                1,
+            )  # enable Nagle's algorithm (contrary to what manual recommends!)
+            self.socket.setsockopt(
+                sckt.SOL_SOCKET,
+                sckt.SO_KEEPALIVE,
+                1,
+            )
+            self.socket.setsockopt(
+                sckt.IPPROTO_TCP,
+                sckt.TCP_KEEPIDLE,
+                10,
+            )
+            self.socket.setsockopt(
+                sckt.IPPROTO_TCP,
+                sckt.TCP_KEEPINTVL,
+                10,
+            )
 
     def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
         """Send command and check reply.
@@ -95,7 +113,7 @@ class PTHeadIPConnection(PTHeadConnection):
         The reply is then checked. Axis errors are ignored if command is an axis reset command.
         Expected reply is '*'
 
-        If the reply is not correct, a second attempt is made by calling this function again, with 
+        If the reply is not correct, a second attempt is made by calling this function again, with
             is_retry = True.
 
         Args:
@@ -103,7 +121,7 @@ class PTHeadIPConnection(PTHeadConnection):
             timeout (float): override default timeout constants,
                 for example for move operations.
                 In seconds.
-            is_retry (bool): set to True if this is the second attempt to send command                 
+            is_retry (bool): set to True if this is the second attempt to send command
 
         Raises:
             PTHeadReplyTimeout: if head does not respond with full line within timeout
@@ -124,7 +142,7 @@ class PTHeadIPConnection(PTHeadConnection):
                 self.log.error(msg)
                 raise
             else:
-                return (self._reset_socket_and_retry(command, e, timeout))
+                return self._reset_socket_and_retry(command, e, timeout)
         else:
             return reply
 
@@ -134,16 +152,14 @@ class PTHeadIPConnection(PTHeadConnection):
         time.sleep(0.5)
         self.socket = None
         self.connect()
-        return (self.send_and_get(command=command, timeout=timeout, is_retry=True))
+        return self.send_and_get(command=command, timeout=timeout, is_retry=True)
 
     def _empty_rcv_socket(self) -> None:
         """Empty the receive buffer of the socket."""
         read_data = ''
 
         while True:
-
             read, _, error = select.select([self.socket], [], [self.socket], 0)
-            #self.log.debug(f'read: [{read}]')
             if error:
                 self.log.warning(f'Error returned from select for socket: [{error}]')
             if not read:
@@ -170,26 +186,29 @@ class PTHeadIPConnection(PTHeadConnection):
         while bytes_sent < msg_len:
             _, _, error = select.select([self.socket], [], [], 0.5)
             if error:
-                raise PTHeadConnectionError(f'Error checking socket: [{error}]. {self.socket}')
+                err_msg = f'Error checking socket: [{error}]. {self.socket}'
+                raise PTHeadConnectionError(err_msg)
             try:
                 sent = self.socket.send(cmd_bytes[bytes_sent:])
             except BrokenPipeError:
-                raise PTHeadConnectionError('Broken pipe error.')
+                err_msg = 'Broken pipe error.'
+                raise PTHeadConnectionError(err_msg) from None
             if sent == 0:
-                raise PTHeadConnectionError(
-                    f'Could not send {cmd_bytes[bytes_sent:]!r}, connection closed.')
+                err_msg = f'Could not send {cmd_bytes[bytes_sent:]!r}, connection closed.'
+                raise PTHeadConnectionError(err_msg)
             bytes_sent += sent
             if bytes_sent < msg_len:
                 self.log.info(
                     f'Not everything was sent in one operation ({msg_len - bytes_sent} bytes '
-                    f'remaining: {cmd_bytes[bytes_sent:]!r})')
+                    f'remaining: {cmd_bytes[bytes_sent:]!r})',
+                )
 
     def _get_reply(self, timeout: float) -> str:
         """Get raw reply within timeout.
 
         Formatting:
             Replies start and end with <LF> (0xA, dec 10).
-            Succesfully executed command:
+            Successfully executed command:
                 <LF>*<CR><LF>
             Response to query:
                 <LF>*<REPLY><CR><LF>
@@ -222,7 +241,8 @@ class PTHeadIPConnection(PTHeadConnection):
                 if rx[0] == '\n' and rx[-2:] == '\r\n':
                     return rx[1:-2]
             timeout -= 0.01
-        raise PTHeadReplyTimeout(f'Received [{repr(rx)}] after {orig_timeout}s')
+        err_msg = f'Received [{repr(rx)}] after {orig_timeout}s'
+        raise PTHeadReplyTimeout(err_msg)
 
     def _rx_from_socket(self) -> str:
         """Try to read from socket.
