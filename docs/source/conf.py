@@ -12,7 +12,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../..'))  # noqa: PTH100
 
 # -- Project information -----------------------------------------------------
 
@@ -20,7 +20,7 @@ project = 'Panthyr FLIR PTU-D48e'
 author = 'Dieter Vansteenwegen'
 
 # The full version, including alpha/beta/rc tags
-release = 'v1.1.0'
+release = 'v1.2.0'
 
 # -- General configuration ---------------------------------------------------
 
