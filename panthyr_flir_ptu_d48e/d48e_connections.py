@@ -164,7 +164,11 @@ class PTHeadIPConnection(PTHeadConnection):
                 self.log.warning(f'Error returned from select for socket: [{error}]')
             if not read:
                 break
-            read_data = self.socket.recv(1024).decode()
+            try:
+                read_data = self.socket.recv(1024).decode()
+            except TimeoutError:
+                msg = 'Could not read from socket while emptying the rx buffer.'
+                raise PTHeadConnectionError(msg) from None
             if len(read_data) <= 0:
                 break
             if 'PAN-TILT' not in read_data:
