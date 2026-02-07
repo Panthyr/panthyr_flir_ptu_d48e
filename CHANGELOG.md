@@ -1,5 +1,9 @@
 # Changelog
 
+## Not released yet
+
+- feat: Change head park position to 0,85
+
 ## V1.1.0
 
 - Retry a command once when it fails to execute.
