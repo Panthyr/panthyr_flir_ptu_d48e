@@ -57,115 +57,101 @@ class PTHeadIPConnection(PTHeadConnection):
         self.port = port
         self.timeout = timeout
         self.log = initialize_logger()
-        self.connect()
+        self._test_connection()
 
-    def connect(self) -> None:
-        """Set up socket connection."""
+    def _create_socket(self):
+        """Create and configure a socket connection.
+
+        Creates a TCP socket, configures it with TCP_NODELAY enabled
+        (contrary to manual recommendation, but prevents network stack hangs),
+        and sets socket timeout to 3 seconds.
+
+        Returns:
+            socket.socket: configured socket instance
+
+        Raises:
+            PTHeadConnectionError: if socket creation or configuration fails
+        """
         try:
-            self.socket = sckt.create_connection((self.ip, self.port), self.timeout)
+            sock = sckt.create_connection((self.ip, self.port), self.timeout)
         except (sckt.timeout, OSError):
             msg = f'Problem setting up socket for pan/tilt head ({self.ip}:{self.port})'
             raise PTHeadConnectionError(msg) from None
-        else:
-            self._set_socket_options()
-            self._empty_rcv_socket()
-            self.log.debug('Socket set up.')
 
-    def _set_socket_options(self) -> None:
-        """Perform additional configuration on the socket
+        # Configure socket
+        sock.settimeout(3)
+        sock.setsockopt(
+            sckt.IPPROTO_TCP,
+            sckt.TCP_NODELAY,
+            1,
+        )  # enable Nagle's algorithm (contrary to what manual recommends!)
 
-        Enable Nagle's Algorithm (bundle smaller chunks of data for delivery into one big packet).
-        Nagle should be disabled according to manual, but experiencing much less network stack hangs
-            on the head if enabled...
-        Enables keepalive packets.
-        Starts sending keepalive packets after 10 idle seconds.
-        Send a packet every 10 seconds.
+        return sock
+
+    def _test_connection(self) -> None:
+        """Test that the head is reachable by creating and closing a socket.
+
+        This is called during initialization to validate connectivity.
+        The socket is closed after the test.
+
+        Raises:
+            PTHeadConnectionError: if the connection cannot be established
         """
-        if self.socket:
-            self.socket.settimeout(3)
-            # self.socket.setblocking(0)
-            self.socket.setsockopt(
-                sckt.IPPROTO_TCP,
-                sckt.TCP_NODELAY,
-                1,
-            )  # enable Nagle's algorithm (contrary to what manual recommends!)
-            self.socket.setsockopt(
-                sckt.SOL_SOCKET,
-                sckt.SO_KEEPALIVE,
-                1,
-            )
-            self.socket.setsockopt(
-                sckt.IPPROTO_TCP,
-                sckt.TCP_KEEPIDLE,
-                10,
-            )
-            self.socket.setsockopt(
-                sckt.IPPROTO_TCP,
-                sckt.TCP_KEEPINTVL,
-                10,
-            )
+        sock = self._create_socket()
+        try:
+            self._empty_rcv_socket(sock)
+            self.log.debug('Connection test successful.')
+        finally:
+            sock.close()
 
-    def send_and_get(self, command: str, timeout: float, is_retry: bool = False) -> str:
-        """Send command and check reply.
+    def send_and_get(self, command: str, timeout: float) -> str:
+        """Send command and get reply over a fresh socket connection.
 
-        The command is sent over the socket connection.
-        Within the timeout window, the socket is read out for the reply.
-        The reply is then checked. Axis errors are ignored if command is an axis reset command.
-        Expected reply is '*'
-
-        If the reply is not correct, a second attempt is made by calling this function again, with
-            is_retry = True.
+        For each call, a new socket is created, the command is sent, the reply
+        is received within the timeout window, and then the socket is closed.
 
         Args:
             command (str): Command to be sent (without <CR>)
-            timeout (float): override default timeout constants,
-                for example for move operations.
-                In seconds.
-            is_retry (bool): set to True if this is the second attempt to send command
+            timeout (float): timeout for receiving reply, in seconds.
+                For move operations, this should be set to a higher value.
 
         Raises:
             PTHeadReplyTimeout: if head does not respond with full line within timeout
-            PTHeadIncorrectReply: if the reply is not correct
+            PTHeadConnectionError: if socket creation or send fails
+            PTHeadIncorrectReply: if the reply format is incorrect (checked by higher-level code)
 
         Returns:
-            str: reply from head
+            str: reply from head (without leading <LF> or trailing <CR><LF>)
         """
-
-        self._empty_rcv_socket()
-        self._send_raw(command)
-
+        sock = self._create_socket()
         try:
-            reply = self._get_reply(timeout)
+            self._empty_rcv_socket(sock)
+            self._send_raw(sock, command)
+            reply = self._get_reply(sock, timeout)
         except PTHeadReplyTimeout as e:
-            if is_retry:
-                msg: str = f' Retry failed: {str(e)} for command "{command}"'
-                self.log.error(msg)
-                raise
-            else:
-                return self._reset_socket_and_retry(command, e, timeout)
+            self.log.warning(f'Timeout on head command "{command}": {e}')
+            raise
         else:
             return reply
+        finally:
+            sock.close()
 
-    def _reset_socket_and_retry(self, command, e, timeout):
-        self.log.warning(f'Resetting socket and retrying head command {command}, {e}.')
-        self.socket.close()
-        time.sleep(0.5)
-        self.socket = None
-        self.connect()
-        return self.send_and_get(command=command, timeout=timeout, is_retry=True)
+    def _empty_rcv_socket(self, sock) -> None:
+        """Empty the receive buffer of the socket.
 
-    def _empty_rcv_socket(self) -> None:
-        """Empty the receive buffer of the socket."""
+        Args:
+            sock: socket object to empty
+        """
         read_data = ''
 
         while True:
-            read, _, error = select.select([self.socket], [], [self.socket], 0)
+            read, _, error = select.select([sock], [], [sock], 0)
             if error:
                 self.log.warning(f'Error returned from select for socket: [{error}]')
             if not read:
                 break
             try:
-                read_data = self.socket.recv(1024).decode()
+                read_data = sock.recv(1024).decode()
             except TimeoutError:
                 msg = 'Could not read from socket while emptying the rx buffer.'
                 raise PTHeadConnectionError(msg) from None
@@ -174,12 +160,13 @@ class PTHeadIPConnection(PTHeadConnection):
             if 'PAN-TILT' not in read_data:
                 self.log.warning(f'Data left in buffer: [{read_data}]')
 
-    def _send_raw(self, command: str) -> None:
+    def _send_raw(self, sock, command: str) -> None:
         """Send command over socket
 
         <CR> character is added at the end of command, and converted to bytes
 
         Args:
+            sock: socket object to send through
             command (str): command to be sent
         """
 
@@ -188,12 +175,12 @@ class PTHeadIPConnection(PTHeadConnection):
 
         bytes_sent = 0
         while bytes_sent < msg_len:
-            _, _, error = select.select([self.socket], [], [], 0.5)
+            _, _, error = select.select([sock], [], [], 0.5)
             if error:
-                err_msg = f'Error checking socket: [{error}]. {self.socket}'
+                err_msg = f'Error checking socket: [{error}]. {sock}'
                 raise PTHeadConnectionError(err_msg)
             try:
-                sent = self.socket.send(cmd_bytes[bytes_sent:])
+                sent = sock.send(cmd_bytes[bytes_sent:])
             except BrokenPipeError:
                 err_msg = 'Broken pipe error.'
                 raise PTHeadConnectionError(err_msg) from None
@@ -207,7 +194,7 @@ class PTHeadIPConnection(PTHeadConnection):
                     f'remaining: {cmd_bytes[bytes_sent:]!r})',
                 )
 
-    def _get_reply(self, timeout: float) -> str:
+    def _get_reply(self, sock, timeout: float) -> str:
         """Get raw reply within timeout.
 
         Formatting:
@@ -225,6 +212,7 @@ class PTHeadIPConnection(PTHeadConnection):
                     <LF>!T!T*<CR><LF>
 
         Args:
+            sock: socket object to read from
             timeout (float): reply timeout in seconds
 
         Raises:
@@ -238,7 +226,7 @@ class PTHeadIPConnection(PTHeadConnection):
 
         while timeout > 0:
             # check if there's data in the buffer
-            rx += self._rx_from_socket()
+            rx += self._rx_from_socket(sock)
 
             time.sleep(0.01)
             with contextlib.suppress(IndexError):
@@ -248,16 +236,19 @@ class PTHeadIPConnection(PTHeadConnection):
         err_msg = f'Received [{repr(rx)}] after {orig_timeout}s'
         raise PTHeadReplyTimeout(err_msg)
 
-    def _rx_from_socket(self) -> str:
+    def _rx_from_socket(self, sock) -> str:
         """Try to read from socket.
+
+        Args:
+            sock: socket object to read from
 
         Returns:
             str: received characters. Empty string if none received.
         """
         rx_buffer_readout = ''
-        rx_waiting, _, _ = select.select([self.socket], [], [], 0)
+        rx_waiting, _, _ = select.select([sock], [], [], 0)
         while len(rx_waiting) > 0:
-            rx_buffer_readout += self.socket.recv(1).decode()
-            rx_waiting, _, _ = select.select([self.socket], [], [], 0)
+            rx_buffer_readout += sock.recv(1).decode()
+            rx_waiting, _, _ = select.select([sock], [], [], 0)
             time.sleep(0.01)
         return rx_buffer_readout
