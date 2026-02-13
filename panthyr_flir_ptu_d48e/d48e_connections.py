@@ -125,6 +125,7 @@ class PTHeadIPConnection(PTHeadConnection):
         """
         sock = self._create_socket()
         try:
+            time.sleep(0.2)
             self._empty_rcv_socket(sock)
             self._send_raw(sock, command)
             reply = self._get_reply(sock, timeout)
