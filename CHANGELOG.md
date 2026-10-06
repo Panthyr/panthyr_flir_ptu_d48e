@@ -2,7 +2,8 @@
 
 ## Not released yet
 
-- build: change build platform to hatchling
+- feat: Change head park position to 0,85
+- build: Change build platform to hatchling
 
 ## V1.1.0
 
