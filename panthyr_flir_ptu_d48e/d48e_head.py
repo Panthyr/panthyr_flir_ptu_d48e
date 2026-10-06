@@ -645,5 +645,10 @@ class PTHead:
         return steps
 
     def park(self) -> None:
-        """Put the head in park position ([0,-90])"""
-        self.move_pos_deg(0, -90)
+        """Put the head in park position.
+
+        In the past this was at positino 0,-90, but by changing this to 0, -85, the top section
+            has a small inclination, which makes water run of it more easily, and thus
+            reduces the risk of water damage.
+        """
+        self.move_pos_deg(0, -85)
