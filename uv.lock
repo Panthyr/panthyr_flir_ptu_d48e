@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.7.3"
+
+[[package]]
+name = "p-flir-ptu-d48e"
+version = "1.2.0"
+source = { editable = "." }

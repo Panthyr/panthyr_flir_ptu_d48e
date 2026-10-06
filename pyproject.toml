@@ -24,13 +24,14 @@ Changelog = 'https://github.com/Panthyr/panthyr_flir_ptu_d48e/blob/master/CHANGE
 
 
 [build-system]
-requires = ['setuptools', 'setuptools-scm']
-# build-backend = 'setuptools.build.meta'     # Generates 'ModuleNotFoundError: No module named 'setuptools.build'
+requires = ["hatchling",]
+build-backend = "hatchling.build"
 
 [tool.setuptools.packages.find]
 where = ['.']                       # list of folders that contain the packages (['.'] by default)
 include = ['panthyr_flir_ptu_d48e']
-
+[tool.hatch.build.targets.wheel]
+packages = ['panthyr_flir_ptu_d48e']
 [project.scripts]
 # worker = "p_core.worker.worker:main"
 
