@@ -9,8 +9,11 @@ __project__ = 'Panthyr'
 __project_link__ = 'https://waterhypernet.org/equipment/'
 
 __all__ = [
-    'PTHeadIncorrectReply', 'PTHeadNotInitialized', 'PTHeadReplyTimeout',
-    'PTHeadInvalidTargetPosition', 'PTHeadMoveError'
+    'PTHeadIncorrectReply',
+    'PTHeadNotInitialized',
+    'PTHeadReplyTimeout',
+    'PTHeadInvalidTargetPosition',
+    'PTHeadMoveError',
 ]
 
 
@@ -20,21 +23,25 @@ class PTHeadException(Exception):
 
 class PTHeadReplyTimeout(PTHeadException):
     """Timeout waiting for reply from head"""
+
     pass
 
 
 class PTHeadConnectionError(PTHeadException):
     """Could not connect to head"""
+
     pass
 
 
 class PTHeadNotInitialized(PTHeadException):
     """Trying to perform an action, but head is not yet initialized"""
+
     pass
 
 
 class PTHeadIncorrectReply(PTHeadException):
     """Head returned an incorrect reply to a command or query"""
+
     pass
 
 
@@ -44,9 +51,11 @@ class PTHeadInvalidTargetPosition(PTHeadException):
 
     Position might be in an invalid format or out of hardware/user limits.
     """
+
     pass
 
 
 class PTHeadMoveError(PTHeadException):
     """Head is not where it should be after a move action."""
+
     pass
