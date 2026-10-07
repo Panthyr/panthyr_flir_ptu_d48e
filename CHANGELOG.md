@@ -16,3 +16,7 @@
 
 - feat: Change head park position to 0,85
 - build: Change build platform to hatchling
+
+## V1.3.1 (07/10/2026)
+
+- revert: separate socket for each cmd (7386e6)
