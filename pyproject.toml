@@ -4,7 +4,7 @@
 name = 'p_flir_ptu_d48e'
 
 readme = 'README.md'
-version = 'v1.3.0'
+version = 'v1.3.1'
 description = '.'
 authors = [{ email = 'dieterv@vliz.be' }, { name = 'Dieter Vansteenwegen' }]
 classifiers = [
